@@ -11,6 +11,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.nio.ByteBuffer
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 
@@ -28,6 +29,8 @@ class H264StreamDecoder(
     private var height = 0
     private var spsReceived = false
     private var ppsReceived = false
+    private var spsData: ByteArray? = null
+    private var ppsData: ByteArray? = null
     private var formatConfigured = false
     private val frameCount = AtomicLong(0)
     private val byteCount = AtomicLong(0)
@@ -66,13 +69,23 @@ class H264StreamDecoder(
     }
 
     private fun handleSps(sps: ByteArray) {
+        spsData = stripAnnexBStartCode(sps)
         spsReceived = true
         tryConfigureFormat()
     }
 
     private fun handlePps(pps: ByteArray) {
+        ppsData = stripAnnexBStartCode(pps)
         ppsReceived = true
         tryConfigureFormat()
+    }
+
+    private fun stripAnnexBStartCode(data: ByteArray): ByteArray {
+        return when {
+            data.size >= 4 && data[0] == 0.toByte() && data[1] == 0.toByte() && data[2] == 0.toByte() && data[3] == 1.toByte() -> data.copyOfRange(4, data.size)
+            data.size >= 3 && data[0] == 0.toByte() && data[1] == 0.toByte() && data[2] == 1.toByte() -> data.copyOfRange(3, data.size)
+            else -> data
+        }
     }
 
     private fun handleConfig(payload: ByteArray) {
@@ -91,6 +104,8 @@ class H264StreamDecoder(
         try {
             val format = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, width, height)
             format.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, width * height * 3 / 2)
+            spsData?.let { format.setByteBuffer("csd-0", ByteBuffer.wrap(it)) }
+            ppsData?.let { format.setByteBuffer("csd-1", ByteBuffer.wrap(it)) }
             val codec = MediaCodec.createDecoderByType(MediaFormat.MIMETYPE_VIDEO_AVC)
             mediaCodec = codec
             codec.configure(format, surface, null, 0)
@@ -108,11 +123,12 @@ class H264StreamDecoder(
             if (inputIndex >= 0) {
                 val buffer = codec.getInputBuffer(inputIndex) ?: return
                 buffer.clear()
-                buffer.put(payload)
+                val cleanPayload = stripAnnexBStartCode(payload)
+                buffer.put(cleanPayload)
                 val flags = if (isKeyframe) MediaCodec.BUFFER_FLAG_KEY_FRAME else 0
-                codec.queueInputBuffer(inputIndex, 0, payload.size, System.nanoTime() / 1000, flags)
+                codec.queueInputBuffer(inputIndex, 0, cleanPayload.size, System.nanoTime() / 1000, flags)
                 frameCount.incrementAndGet()
-                byteCount.addAndGet(payload.size.toLong())
+                byteCount.addAndGet(cleanPayload.size.toLong())
             }
             drainOutput()
         } catch (e: Exception) {

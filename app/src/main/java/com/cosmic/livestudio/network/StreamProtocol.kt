@@ -55,19 +55,25 @@ object StreamProtocol {
 
     fun parseDiscoveryPayload(json: String): DiscoveryInfo? {
         return try {
-            val app = extractJsonValue(json, "app")
-            val code = extractJsonValue(json, "code")
-            val portStr = extractJsonValue(json, "tcpPort")
+            val app = extractJsonString(json, "app")
+            val code = extractJsonString(json, "code")
+            val portStr = extractJsonNumber(json, "tcpPort")
             if (app != null && code != null && portStr != null) {
-                DiscoveryInfo(app, code, portStr.toInt())
+                val port = portStr.toIntOrNull()
+                if (port != null) DiscoveryInfo(app, code, port) else null
             } else null
         } catch (_: Exception) {
             null
         }
     }
 
-    private fun extractJsonValue(json: String, key: String): String? {
+    private fun extractJsonString(json: String, key: String): String? {
         val pattern = "\"$key\"\\s*:\\s*\"([^\"]*)\"".toRegex()
+        return pattern.find(json)?.groupValues?.get(1)
+    }
+
+    private fun extractJsonNumber(json: String, key: String): String? {
+        val pattern = "\"$key\"\\s*:\\s*(\\d+)".toRegex()
         return pattern.find(json)?.groupValues?.get(1)
     }
 

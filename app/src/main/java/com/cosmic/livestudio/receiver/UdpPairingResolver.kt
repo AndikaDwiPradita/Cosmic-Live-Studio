@@ -30,6 +30,7 @@ class UdpPairingResolver(
                 val socket = DatagramSocket(null)
                 datagramSocket = socket
                 socket.reuseAddress = true
+                socket.broadcast = true
                 socket.bind(InetSocketAddress(StreamProtocol.UDP_DISCOVERY_PORT))
                 socket.soTimeout = 1000
 
@@ -40,12 +41,12 @@ class UdpPairingResolver(
 
                 while (isRunning.get() && resolvedRef.get() == null) {
                     if (System.currentTimeMillis() - startTime > timeoutMs) {
-                        onError("Timeout: Perangkat tidak ditemukan. Pastikan kedua HP terhubung ke jaringan yang sama.")
+                        if (isRunning.get()) onError("Timeout: Perangkat tidak ditemukan. Pastikan mode Bagikan Layar sudah dimulai dan kedua perangkat berada pada Wi-Fi yang sama.")
                         break
                     }
                     try {
                         socket.receive(packet)
-                        val receivedData = String(buffer, 0, packet.length)
+                        val receivedData = String(buffer, 0, packet.length, Charsets.UTF_8)
                         val senderIp = packet.address.hostAddress ?: continue
                         val info = StreamProtocol.parseDiscoveryPayload(receivedData)
                         if (info != null && info.app == StreamProtocol.DISCOVERY_APP_ID && info.code == targetPairingCode) {
