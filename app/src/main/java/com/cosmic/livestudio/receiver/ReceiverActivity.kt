@@ -12,6 +12,8 @@ import com.cosmic.livestudio.R
 import com.cosmic.livestudio.network.StreamProtocol
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import java.io.BufferedInputStream
 import java.net.Socket
@@ -33,17 +35,13 @@ class ReceiverActivity : AppCompatActivity(), SurfaceHolder.Callback {
 
     private var udpResolver: UdpPairingResolver? = null
     private var decoder: H264StreamDecoder? = null
-    private var tcpScope: CoroutineScope? = null
+    private var tcpJob: Job? = null
     private var socket: Socket? = null
     private var isConnected = false
-    private var currentPairingCode = ""
-    private var connectedIp = ""
-    private var connectedPort = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_receiver)
-
         initViews()
         setupSurfaceView()
         setupListeners()
@@ -73,7 +71,6 @@ class ReceiverActivity : AppCompatActivity(), SurfaceHolder.Callback {
     private fun setupListeners() {
         btnConnect.setOnClickListener { startPairing() }
         btnDisconnect.setOnClickListener { disconnect() }
-
         etPairingCode.setOnEditorActionListener { _, actionId, _ ->
             if (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_DONE) {
                 startPairing()
@@ -88,177 +85,102 @@ class ReceiverActivity : AppCompatActivity(), SurfaceHolder.Callback {
             Toast.makeText(this, "Masukkan 6-digit pairing code yang valid", Toast.LENGTH_SHORT).show()
             return
         }
-
-        currentPairingCode = code
         setConnectingState(true)
-
-        // Start UDP resolver
-        udpResolver = UdpPairingResolver(
-            targetPairingCode = code,
-            onResolved = { ip, port ->
-                runOnUiThread {
-                    connectedIp = ip
-                    connectedPort = port
-                    tvConnectionInfo.text = "$ip:$port"
-                    connectTcp(ip, port)
-                }
-            },
-            onError = { error ->
-                runOnUiThread {
-                    setConnectingState(false)
-                    showError(error)
-                }
-            }
+        udpResolver = UdpPairingResolver(code,
+            onResolved = { ip, port -> runOnUiThread { tvConnectionInfo.text = "$ip:$port"; connectTcp(ip, port) } },
+            onError = { error -> runOnUiThread { setConnectingState(false); showError(error) } }
         )
         udpResolver?.start()
     }
 
     private fun connectTcp(ip: String, port: Int) {
-        tcpScope = CoroutineScope(Dispatchers.IO)
-        tcpScope?.launch {
+        tcpJob = CoroutineScope(Dispatchers.IO).launch {
             try {
-                socket = Socket().apply {
-                    setSoTimeout(5000)
-                    setTcpNoDelay(true)
-                    setReceiveBufferSize(256 * 1024)
-                }
-                socket?.connect(java.net.InetSocketAddress(ip, port), 5000)
-
+                val newSocket = Socket()
+                socket = newSocket
+                newSocket.setTcpNoDelay(true)
+                newSocket.setReceiveBufferSize(256 * 1024)
+                newSocket.connect(java.net.InetSocketAddress(ip, port), 5000)
                 runOnUiThread { onConnected() }
-                handleTcpStream(socket!!)
+                handleTcpStream(newSocket)
             } catch (e: Exception) {
-                Log.e("ReceiverActivity", "TCP connection error", e)
-                runOnUiThread {
-                    showError("Gagal terhubung ke HP 2: ${e.message}")
-                    setConnectingState(false)
-                }
+                runOnUiThread { showError("Gagal terhubung: ${e.message}"); setConnectingState(false) }
             }
         }
     }
 
     private suspend fun handleTcpStream(socket: Socket) {
-        val inputStream = BufferedInputStream(socket.getInputStream())
-        val headerBuffer = ByteArray(StreamProtocol.HEADER_SIZE)
-
+        val input = BufferedInputStream(socket.getInputStream())
+        val header = ByteArray(StreamProtocol.HEADER_SIZE)
         while (isConnected && !socket.isClosed) {
             try {
-                // Read header
-                var bytesRead = 0
-                while (bytesRead < StreamProtocol.HEADER_SIZE && isConnected) {
-                    val read = inputStream.read(headerBuffer, bytesRead, StreamProtocol.HEADER_SIZE - bytesRead)
-                    if (read == -1) {
-                        throw java.io.EOFException("Stream ended")
-                    }
-                    bytesRead += read
+                var read = 0
+                while (read < header.size) {
+                    val n = input.read(header, read, header.size - read)
+                    if (n == -1) throw java.io.EOFException("Stream ended")
+                    read += n
                 }
-
-                val (frameType, payloadLength) = StreamProtocol.parseHeader(headerBuffer)
-
-                // Read payload
+                val (_, payloadLength) = StreamProtocol.parseHeader(header)
+                if (payloadLength < 0) throw IllegalStateException("Invalid packet length")
                 val payload = ByteArray(payloadLength)
-                bytesRead = 0
-                while (bytesRead < payloadLength && isConnected) {
-                    val read = inputStream.read(payload, bytesRead, payloadLength - bytesRead)
-                    if (read == -1) {
-                        throw java.io.EOFException("Stream ended")
-                    }
-                    bytesRead += read
+                read = 0
+                while (read < payloadLength) {
+                    val n = input.read(payload, read, payloadLength - read)
+                    if (n == -1) throw java.io.EOFException("Stream ended")
+                    read += n
                 }
-
-                // Combine header + payload for decoder
-                val fullPacket = ByteArray(StreamProtocol.HEADER_SIZE + payloadLength)
-                System.arraycopy(headerBuffer, 0, fullPacket, 0, StreamProtocol.HEADER_SIZE)
-                System.arraycopy(payload, 0, fullPacket, StreamProtocol.HEADER_SIZE, payloadLength)
-
-                decoder?.queueFrame(fullPacket)
-
+                val packet = header + payload
+                decoder?.queueFrame(packet)
             } catch (e: Exception) {
-                if (isConnected) {
-                    Log.e("ReceiverActivity", "Stream read error", e)
-                    runOnUiThread { showError("Koneksi terputus: ${e.message}") }
-                }
+                if (isConnected) runOnUiThread { showError("Koneksi terputus: ${e.message}") }
                 break
             }
         }
-
         runOnUiThread { disconnect() }
     }
 
     private fun onConnected() {
         isConnected = true
         setConnectedState(true)
-
-        // Initialize decoder with surface
-        decoder = H264StreamDecoder(
-            surface = surfaceView.holder.surface,
-            onStatsUpdate = { w, h, fps, bitrate ->
-                runOnUiThread {
-                    tvStatResolution.text = "${w}x$h"
-                    tvStatFps.text = "${fps}"
-                    tvStatBitrate.text = formatBitrate(bitrate)
-                    tvStatLatency.text = "< 50 ms"
-                }
-            },
-            onError = { error ->
-                runOnUiThread { showError(error) }
-            }
-        )
+        decoder = H264StreamDecoder(surfaceView.holder.surface,
+            onStatsUpdate = { w, h, fps, bitrate -> runOnUiThread {
+                tvStatResolution.text = "${w}x${h}"; tvStatFps.text = "$fps"; tvStatBitrate.text = formatBitrate(bitrate)
+            } },
+            onError = { error -> runOnUiThread { showError(error) } })
         decoder?.start()
-
-        Toast.makeText(this, "Terhubung ke HP 2", Toast.LENGTH_SHORT).show()
     }
 
     private fun disconnect() {
         isConnected = false
-
         decoder?.stop()
         decoder = null
-
         socket?.close()
         socket = null
-
-        tcpScope?.coroutineContext.cancel()
-        tcpScope = null
-
+        tcpJob?.cancel()
+        tcpJob = null
         udpResolver?.stop()
         udpResolver = null
-
         setConnectedState(false)
         clearStats()
-        Toast.makeText(this, "Terputus dari HP 2", Toast.LENGTH_SHORT).show()
     }
 
     private fun setConnectingState(connecting: Boolean) {
-        if (connecting) {
-            tvStatus.text = getString(R.string.status_connecting)
-            tvStatus.setTextColor(getColor(R.color.status_connecting))
-            btnConnect.isEnabled = false
-            etPairingCode.isEnabled = false
-        } else {
-            tvStatus.text = getString(R.string.status_disconnected)
-            tvStatus.setTextColor(getColor(R.color.status_disconnected))
-            btnConnect.isEnabled = true
-            etPairingCode.isEnabled = true
-        }
+        tvStatus.text = getString(if (connecting) R.string.status_connecting else R.string.status_disconnected)
+        tvStatus.setTextColor(getColor(if (connecting) R.color.status_connecting else R.color.status_disconnected))
+        btnConnect.isEnabled = !connecting
+        etPairingCode.isEnabled = !connecting
     }
 
     private fun setConnectedState(connected: Boolean) {
-        if (connected) {
-            tvStatus.text = getString(R.string.status_connected)
-            tvStatus.setTextColor(getColor(R.color.status_connected))
-            layoutPairingInput.visibility = android.view.View.GONE
-            layoutConnectedControls.visibility = android.view.View.VISIBLE
-            layoutStats.visibility = android.view.View.VISIBLE
-        } else {
-            tvStatus.text = getString(R.string.status_disconnected)
-            tvStatus.setTextColor(getColor(R.color.status_disconnected))
-            layoutPairingInput.visibility = android.view.View.VISIBLE
-            layoutConnectedControls.visibility = android.view.View.GONE
-            layoutStats.visibility = android.view.View.GONE
+        tvStatus.text = getString(if (connected) R.string.status_connected else R.string.status_disconnected)
+        tvStatus.setTextColor(getColor(if (connected) R.color.status_connected else R.color.status_disconnected))
+        layoutPairingInput.visibility = if (connected) android.view.View.GONE else android.view.View.VISIBLE
+        layoutConnectedControls.visibility = if (connected) android.view.View.VISIBLE else android.view.View.GONE
+        layoutStats.visibility = if (connected) android.view.View.VISIBLE else android.view.View.GONE
+        if (!connected) {
             tvConnectionInfo.text = ""
             btnConnect.isEnabled = true
             etPairingCode.isEnabled = true
-            etPairingCode.text?.clear()
         }
     }
 
@@ -269,12 +191,10 @@ class ReceiverActivity : AppCompatActivity(), SurfaceHolder.Callback {
         tvStatLatency.text = "--"
     }
 
-    private fun formatBitrate(bps: Long): String {
-        return when {
-            bps >= 1_000_000 -> String.format("%.1f Mbps", bps / 1_000_000.0)
-            bps >= 1_000 -> String.format("%.0f Kbps", bps / 1000.0)
-            else -> "${bps} bps"
-        }
+    private fun formatBitrate(bps: Long): String = when {
+        bps >= 1_000_000 -> String.format("%.1f Mbps", bps / 1_000_000.0)
+        bps >= 1_000 -> String.format("%.0f Kbps", bps / 1000.0)
+        else -> "${bps} bps"
     }
 
     private fun showError(message: String) {
@@ -283,22 +203,8 @@ class ReceiverActivity : AppCompatActivity(), SurfaceHolder.Callback {
         Toast.makeText(this, message, Toast.LENGTH_LONG).show()
     }
 
-    override fun surfaceCreated(holder: SurfaceHolder) {
-        // Surface ready - decoder will be created on connect
-    }
-
-    override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
-        // Surface size changed
-    }
-
-    override fun surfaceDestroyed(holder: SurfaceHolder) {
-        if (isConnected) {
-            disconnect()
-        }
-    }
-
-    override fun onDestroy() {
-        disconnect()
-        super.onDestroy()
-    }
+    override fun surfaceCreated(holder: SurfaceHolder) {}
+    override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {}
+    override fun surfaceDestroyed(holder: SurfaceHolder) { if (isConnected) disconnect() }
+    override fun onDestroy() { disconnect(); super.onDestroy() }
 }
