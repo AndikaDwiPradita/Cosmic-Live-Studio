@@ -23,7 +23,6 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.cosmic.livestudio.R
 import com.cosmic.livestudio.network.NetworkUtils
-import com.cosmic.livestudio.network.PairingInfo
 import com.cosmic.livestudio.network.StreamProtocol
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.WriterException
@@ -36,19 +35,16 @@ class SenderActivity : AppCompatActivity() {
     private val MEDIA_PROJECTION_REQUEST_CODE = 1001
     private val PERMISSION_REQUEST_CODE = 1002
 
-    private lateinit var tvPairingCode: TextView
     private lateinit var tvLocalIp: TextView
     private lateinit var tvPort: TextView
     private lateinit var ivQrCode: ImageView
     private lateinit var tvStatus: TextView
     private lateinit var btnToggleSharing: Button
-    private lateinit var btnCopyCode: Button
-    private lateinit var btnCopyConnectionInfo: Button
+    private lateinit var btnCopyIpPort: Button
     private lateinit var spinnerResolution: Spinner
     private lateinit var spinnerFps: Spinner
     private lateinit var spinnerBitrate: Spinner
 
-    private var pairingCode = ""
     private var isSharing = false
     private var mediaProjectionManager: MediaProjectionManager? = null
     private var currentWidth = 1280
@@ -67,7 +63,6 @@ class SenderActivity : AppCompatActivity() {
         setupToolbar()
         initViews()
         setupSpinners()
-        generatePairingCode()
         loadLocalIpAddress()
         checkPermissionsAndStart()
         mediaProjectionManager = getSystemService(MediaProjectionManager::class.java)
@@ -81,20 +76,17 @@ class SenderActivity : AppCompatActivity() {
     }
 
     private fun initViews() {
-        tvPairingCode = findViewById(R.id.tvPairingCode)
         tvLocalIp = findViewById(R.id.tvLocalIp)
         tvPort = findViewById(R.id.tvPort)
         ivQrCode = findViewById(R.id.ivQrCode)
         tvStatus = findViewById(R.id.tvSenderStatus)
         btnToggleSharing = findViewById(R.id.btnToggleSharing)
-        btnCopyCode = findViewById(R.id.btnCopyCode)
-        btnCopyConnectionInfo = findViewById(R.id.btnCopyConnectionInfo)
+        btnCopyIpPort = findViewById(R.id.btnCopyConnectionInfo)
         spinnerResolution = findViewById(R.id.spinnerResolution)
         spinnerFps = findViewById(R.id.spinnerFps)
         spinnerBitrate = findViewById(R.id.spinnerBitrate)
         btnToggleSharing.setOnClickListener { toggleSharing() }
-        btnCopyCode.setOnClickListener { copyPairingCode() }
-        btnCopyConnectionInfo.setOnClickListener { copyConnectionInfo() }
+        btnCopyIpPort.setOnClickListener { copyIpPort() }
     }
 
     private fun setupSpinners() {
@@ -136,19 +128,13 @@ class SenderActivity : AppCompatActivity() {
         }
     }
 
-    private fun generatePairingCode() {
-        pairingCode = (100000..999999).random().toString()
-        tvPairingCode.text = pairingCode.chunked(3).joinToString(" ")
-        updateQrCode()
-    }
-
     private fun loadLocalIpAddress() {
         CoroutineScope(Dispatchers.IO).launch {
             val ip = NetworkUtils.getLocalIpAddress()
             runOnUiThread {
                 localIpAddress = ip ?: "Tidak ditemukan"
-                tvLocalIp.text = localIpAddress
-                tvPort.text = "Port: ${StreamProtocol.TCP_STREAMING_PORT}"
+                tvLocalIp.text = "IP: $localIpAddress"
+                tvPort.text = "Port TCP: ${StreamProtocol.TCP_STREAMING_PORT}"
                 updateQrCode()
             }
         }
@@ -156,14 +142,13 @@ class SenderActivity : AppCompatActivity() {
 
     private fun updateQrCode() {
         if (localIpAddress.isNotEmpty() && localIpAddress != "Tidak ditemukan") {
-            val pairingInfo = PairingInfo(localIpAddress, StreamProtocol.TCP_STREAMING_PORT, pairingCode)
-            if (pairingInfo.isValid()) {
-                CoroutineScope(Dispatchers.IO).launch {
-                    val qrBitmap = generateQrCode(pairingInfo.toJson())
-                    runOnUiThread {
-                        ivQrCode.setImageBitmap(qrBitmap)
-                        ivQrCode.visibility = android.view.View.VISIBLE
-                    }
+            // Format: COSMIC|<IP_LOKAL>|<PORT>
+            val qrContent = "COSMIC|$localIpAddress|${StreamProtocol.TCP_STREAMING_PORT}"
+            CoroutineScope(Dispatchers.IO).launch {
+                val qrBitmap = generateQrCode(qrContent)
+                runOnUiThread {
+                    ivQrCode.setImageBitmap(qrBitmap)
+                    ivQrCode.visibility = android.view.View.VISIBLE
                 }
             }
         }
@@ -186,19 +171,12 @@ class SenderActivity : AppCompatActivity() {
         }
     }
 
-    private fun copyPairingCode() {
+    private fun copyIpPort() {
         val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        val clip = ClipData.newPlainText("Pairing Code", pairingCode)
-        clipboard.setPrimaryClip(clip)
-        Toast.makeText(this, "Kode pairing disalin", Toast.LENGTH_SHORT).show()
-    }
-
-    private fun copyConnectionInfo() {
-        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        val info = "IP: $localIpAddress\nPort: ${StreamProtocol.TCP_STREAMING_PORT}\nKode: $pairingCode"
+        val info = "IP: $localIpAddress\nPort: ${StreamProtocol.TCP_STREAMING_PORT}"
         val clip = ClipData.newPlainText("Connection Info", info)
         clipboard.setPrimaryClip(clip)
-        Toast.makeText(this, "Info koneksi disalin", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, "IP dan Port disalin", Toast.LENGTH_SHORT).show()
     }
 
     private fun checkPermissionsAndStart() {
@@ -237,7 +215,6 @@ class SenderActivity : AppCompatActivity() {
         val intent = Intent(this, ScreenCaptureService::class.java).apply {
             action = ScreenCaptureService.ACTION_START
             putExtra(ScreenCaptureService.EXTRA_PROJECTION_DATA, projectionData)
-            putExtra(ScreenCaptureService.EXTRA_PAIRING_CODE, pairingCode)
             putExtra(ScreenCaptureService.EXTRA_TCP_PORT, StreamProtocol.TCP_STREAMING_PORT)
             putExtra(ScreenCaptureService.EXTRA_WIDTH, currentWidth)
             putExtra(ScreenCaptureService.EXTRA_HEIGHT, currentHeight)

@@ -164,165 +164,78 @@
             android:orientation="vertical"
             android:padding="24dp">
 
-            <!-- Pairing Mode Selection -->
-            <RadioGroup
-                android:id="@+id/radioGroupPairingMode"
+            <!-- Scan QR Code Button (Main Action) -->
+            <Button
+                android:id="@+id/btnScanQr"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:text="@string/btn_scan_qr_hp2"
+                style="@style/Widget.CosmicLiveStudio.Button.Primary" />
+
+            <!-- OR Divider -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:layout_marginBottom="16dp"
                 android:orientation="horizontal"
                 android:gravity="center">
 
-                <RadioButton
-                    android:id="@+id/radioUdpDiscovery"
+                <View
+                    android:layout_width="0dp"
+                    android:layout_height="1dp"
+                    android:layout_weight="1"
+                    android:background="@color/divider" />
+
+                <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="@string/mode_udp_discovery"
-                    android:buttonTint="@color/primary"
+                    android:layout_marginStart="16dp"
+                    android:layout_marginEnd="16dp"
+                    android:text="@string/or_manual"
+                    android:textAppearance="@style/TextAppearance.CosmicLiveStudio.BodySecondary" />
+
+                <View
+                    android:layout_width="0dp"
+                    android:layout_height="1dp"
+                    android:layout_weight="1"
+                    android:background="@color/divider" />
+            </LinearLayout>
+
+            <!-- Manual IP Input -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/manual_ip_label"
+                android:textAppearance="@style/TextAppearance.CosmicLiveStudio.Body"
+                android:layout_marginBottom="8dp" />
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                style="@style/Widget.CosmicLiveStudio.TextInputLayout"
+                android:layout_marginBottom="16dp">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etManualIp"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="@string/manual_ip_hint"
+                    android:inputType="text"
+                    android:digits="0123456789.:"
                     android:textColor="@color/text_primary"
-                    android:layout_marginEnd="24dp"
-                    android:checked="true" />
+                    android:textSize="18sp" />
+            </com.google.android.material.textfield.TextInputLayout>
 
-                <RadioButton
-                    android:id="@+id/radioManualPairing"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/mode_manual_pairing"
-                    android:buttonTint="@color/primary"
-                    android:textColor="@color/text_primary" />
-            </RadioGroup>
-
-            <!-- UDP Discovery Mode Input -->
-            <LinearLayout
-                android:id="@+id/layoutPairingInput"
+            <!-- Connect Button -->
+            <Button
+                android:id="@+id/btnConnectManual"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical">
+                android:text="@string/btn_connect"
+                style="@style/Widget.CosmicLiveStudio.Button.Primary" />
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/pairing_code_title"
-                    android:textAppearance="@style/TextAppearance.CosmicLiveStudio.Title"
-                    android:layout_marginBottom="12dp" />
-
-                <com.google.android.material.textfield.TextInputLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    style="@style/Widget.CosmicLiveStudio.TextInputLayout"
-                    android:layout_marginBottom="12dp">
-
-                    <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/etPairingCode"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:hint="@string/pairing_code_hint"
-                        android:inputType="number"
-                        android:maxLength="6"
-                        android:textAlignment="center"
-                        android:textSize="24sp"
-                        android:letterSpacing="0.3"
-                        android:textColor="@color/text_primary" />
-                </com.google.android.material.textfield.TextInputLayout>
-
-                <Button
-                    android:id="@+id/btnConnect"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="@string/btn_connect"
-                    style="@style/Widget.CosmicLiveStudio.Button.Primary" />
-            </LinearLayout>
-
-            <!-- Manual Pairing Mode Input -->
-            <LinearLayout
-                android:id="@+id/layoutManualPairing"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:visibility="gone">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/manual_pairing_info"
-                    android:textAppearance="@style/TextAppearance.CosmicLiveStudio.BodySecondary"
-                    android:layout_marginBottom="12dp" />
-
-                <com.google.android.material.textfield.TextInputLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    style="@style/Widget.CosmicLiveStudio.TextInputLayout"
-                    android:hint="@string/ip_address_hint"
-                    android:layout_marginBottom="12dp">
-
-                    <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/etIpAddress"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:inputType="text"
-                        android:digits="0123456789."
-                        android:textColor="@color/text_primary" />
-                </com.google.android.material.textfield.TextInputLayout>
-
-                <com.google.android.material.textfield.TextInputLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    style="@style/Widget.CosmicLiveStudio.TextInputLayout"
-                    android:hint="@string/port_hint"
-                    android:layout_marginBottom="12dp">
-
-                    <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/etPort"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:inputType="number"
-                        android:textColor="@color/text_primary"
-                        android:text="45455" />
-                </com.google.android.material.textfield.TextInputLayout>
-
-                <com.google.android.material.textfield.TextInputLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    style="@style/Widget.CosmicLiveStudio.TextInputLayout"
-                    android:hint="@string/pairing_code_hint"
-                    android:layout_marginBottom="12dp">
-
-                    <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/etManualPairingCode"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:inputType="number"
-                        android:maxLength="6"
-                        android:textAlignment="center"
-                        android:textSize="24sp"
-                        android:letterSpacing="0.3"
-                        android:textColor="@color/text_primary" />
-                </com.google.android.material.textfield.TextInputLayout>
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center">
-
-                    <Button
-                        android:id="@+id/btnScanQr"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:layout_marginEnd="12dp"
-                        android:text="@string/btn_scan_qr"
-                        style="@style/Widget.CosmicLiveStudio.Button.Secondary" />
-
-                    <Button
-                        android:id="@+id/btnManualConnect"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="@string/btn_connect_manual"
-                        style="@style/Widget.CosmicLiveStudio.Button.Primary" />
-                </LinearLayout>
-            </LinearLayout>
-
+            <!-- Connected Controls (shown after connection) -->
             <LinearLayout
                 android:id="@+id/layoutConnectedControls"
                 android:layout_width="match_parent"

@@ -2,13 +2,26 @@
     <string name="app_name">Cosmic Live Studio</string>
     <string name="mode_sender">Bagikan Layar</string>
     <string name="mode_receiver">Tampilkan Layar</string>
-    <string name="pairing_code_hint">Masukkan 6-digit Pairing Code</string>
+
+    <!-- Sender UI -->
+    <string name="connection_info_title">Info Koneksi HP 1 (Penerima)</string>
+    <string name="ip_local_label">IP Lokal:</string>
+    <string name="tcp_port_label">Port TCP:</string>
+    <string name="qr_code_label">QR Code (Pindai di HP 1)</string>
+    <string name="btn_copy_ip_port">Salin IP & Port</string>
+    <string name="share_this_code">Bagikan info ini ke perangkat penerima</string>
+
+    <!-- Receiver UI -->
+    <string name="btn_scan_qr_hp2">Pindai QR Code HP 2 (Pengirim)</string>
+    <string name="or_manual">ATAU MASUKKAN MANUAL</string>
+    <string name="manual_ip_label">Alamat IP HP 2</string>
+    <string name="manual_ip_hint">Contoh: 192.168.43.1:45455</string>
     <string name="btn_connect">Hubungkan</string>
     <string name="btn_disconnect">Putuskan</string>
+
+    <!-- Common -->
     <string name="btn_start_sharing">Mulai Bagikan Layar</string>
     <string name="btn_stop_sharing">Berhenti Bagikan</string>
-    <string name="btn_scan_qr">Pindai QR Code</string>
-    <string name="btn_connect_manual">Hubungkan Manual</string>
     <string name="status_waiting">Menunggu koneksi…</string>
     <string name="status_connecting">Menghubungkan…</string>
     <string name="status_connected">Terhubung</string>
@@ -20,18 +33,10 @@
     <string name="fps_label">FPS:</string>
     <string name="bitrate_label">Bitrate:</string>
     <string name="latency_label">Latency:</string>
-    <string name="pairing_code_title">Pairing Code</string>
-    <string name="your_pairing_code">Kode Pairing Anda</string>
-    <string name="share_this_code">Bagikan kode ini ke perangkat penerima</string>
-    <string name="waiting_for_connection">Menunggu koneksi…</string>
-    <string name="stream_info">Informasi Stream</string>
-    <string name="mode_udp_discovery">Auto (UDP Broadcast)</string>
-    <string name="mode_manual_pairing">Manual (IP/Port/Code)</string>
-    <string name="manual_pairing_info">Masukkan IP, Port, dan Pairing Code dari HP Pengirim</string>
-    <string name="ip_address_hint">Alamat IP (contoh: 192.168.1.100)</string>
-    <string name="port_hint">Port TCP (default: 45455)</string>
+
+    <!-- Notifications -->
     <string name="notification_title_sender">Cosmic Live Studio - Berbagi Layar</string>
-    <string name="notification_text_sender">Sedang mengirim stream. Pairing Code: %s</string>
+    <string name="notification_text_sender">Sedang mengirim stream. Port %s</string>
     <string name="notification_channel_sender">Screen Sharing</string>
     <string name="notification_channel_receiver">Stream Receiving</string>
 </resources>

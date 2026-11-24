@@ -63,12 +63,5 @@
             android:foregroundServiceType="mediaProjection|dataSync"
             android:permission="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
 
-        <!-- UDP Beacon Broadcaster Service -->
-        <service
-            android:name=".sender.UdpBeaconBroadcaster"
-            android:exported="false"
-            android:foregroundServiceType="dataSync"
-            android:permission="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
-
-    </application>
+        </application>
 </manifest>
