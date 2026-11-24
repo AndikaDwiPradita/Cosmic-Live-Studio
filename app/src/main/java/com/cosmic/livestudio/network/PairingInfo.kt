@@ -66,9 +66,10 @@ object NetworkUtils {
 
     /**
      * Gets the local IPv4 address that can be used for peer-to-peer connections.
-     * Prefers Wi-Fi interface, falls back to other non-loopback interfaces.
+     * Priority: Hotspot/AP interface (ap0, wlan0 with 192.168.43.x/42.x) > Wi-Fi > Others
      */
     fun getLocalIpAddress(): String? {
+        var fallbackIp: String? = null
         try {
             val interfaces = NetworkInterface.getNetworkInterfaces()
             while (interfaces.hasMoreElements()) {
@@ -83,14 +84,25 @@ object NetworkUtils {
                     // Prefer IPv4 (no colons) and filter out link-local (169.254.x.x)
                     if (!hostAddress.contains(":") && !hostAddress.startsWith("169.254.")) {
                         Log.d(TAG, "Found local IP: $hostAddress on interface ${ni.name}")
-                        return hostAddress
+                        // Priority 1: Hotspot interface (Android AP typically 192.168.43.x or 192.168.42.x)
+                        if (ni.name.startsWith("ap") || hostAddress.startsWith("192.168.43.") || hostAddress.startsWith("192.168.42.")) {
+                            return hostAddress
+                        }
+                        // Priority 2: Wi-Fi interface (wlan0, wlan1)
+                        if (ni.name.startsWith("wlan") && fallbackIp == null) {
+                            fallbackIp = hostAddress
+                        }
+                        // Priority 3: Other non-loopback
+                        if (fallbackIp == null) {
+                            fallbackIp = hostAddress
+                        }
                     }
                 }
             }
         } catch (e: SocketException) {
             Log.e(TAG, "Error getting network interfaces", e)
         }
-        return null
+        return fallbackIp
     }
 
     /**

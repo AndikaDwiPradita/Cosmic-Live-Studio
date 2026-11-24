@@ -26,6 +26,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
+import kotlinx.coroutines.completableDeferred
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import java.io.BufferedInputStream
@@ -51,6 +52,7 @@ class ScreenCaptureService : Service() {
     private var streamFps = 30
     private var streamBitrate = 3_500_000
     private var wakeLock: PowerManager.WakeLock? = null
+    private var tcpServerReady = kotlinx.coroutines.CompletableDeferred<Unit>()
 
     override fun onCreate() {
         super.onCreate()
@@ -137,7 +139,17 @@ class ScreenCaptureService : Service() {
         }
 
         startTcpServer()
-        startUdpBeacon()
+
+        // Wait for TCP server to be ready before starting UDP beacon
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                tcpServerReady.await()
+                startUdpBeacon()
+            } catch (e: Exception) {
+                Log.e("ScreenCapture", "TCP server failed to start", e)
+            }
+        }
+
         showNotification()
         Log.d("ScreenCapture", "Capture started: ${streamWidth}x${streamHeight} @ ${streamFps}fps, code: $currentPairingCode")
     }
@@ -155,15 +167,18 @@ class ScreenCaptureService : Service() {
     }
 
     private fun startTcpServer() {
+        tcpServerReady = kotlinx.coroutines.CompletableDeferred()
         tcpJob = CoroutineScope(Dispatchers.IO).launch {
             try {
-                val socket = ServerSocket(currentTcpPort).apply {
-                    reuseAddress = true
+                val socket = ServerSocket().apply {
+                    setReuseAddress(true)
                     soTimeout = 1000
                     setReceiveBufferSize(256 * 1024)
+                    bind(InetSocketAddress(currentTcpPort))
                 }
                 serverSocket = socket
                 Log.d("ScreenCapture", "TCP server listening on port $currentTcpPort")
+                tcpServerReady.complete(Unit)
 
                 while (isRunning.get()) {
                     try {
@@ -182,6 +197,7 @@ class ScreenCaptureService : Service() {
                 }
             } catch (e: Exception) {
                 Log.e("ScreenCapture", "TCP server error", e)
+                if (!tcpServerReady.isCompleted) tcpServerReady.completeExceptionally(e)
             }
             Log.d("ScreenCapture", "TCP server stopped")
         }
@@ -201,8 +217,8 @@ class ScreenCaptureService : Service() {
             return
         }
 
-        // Pairing successful - send stream config and start streaming
-        sendPacket(socket, StreamProtocol.createConfigPacket(streamWidth, streamHeight, streamFps, streamBitrate))
+        // Pairing successful - send pairing success response with stream config
+        sendPacket(socket, StreamProtocol.createPairSuccessResponse(streamWidth, streamHeight, streamFps, streamBitrate))
 
         try {
             val output = socket.getOutputStream()

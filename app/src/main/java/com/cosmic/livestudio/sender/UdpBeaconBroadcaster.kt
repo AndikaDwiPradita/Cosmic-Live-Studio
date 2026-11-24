@@ -56,19 +56,16 @@ class UdpBeaconBroadcaster : Service() {
                 val socket = DatagramSocket().apply {
                     broadcast = true
                     reuseAddress = true
-                    // Bind to any available port for sending
                 }
                 datagramSocket = socket
 
                 val payload = StreamProtocol.createDiscoveryPayload(pairingCode, tcpPort).toByteArray(StandardCharsets.UTF_8)
-                val broadcastAddress = InetAddress.getByName("255.255.255.255")
-                val packet = DatagramPacket(payload, payload.size, broadcastAddress, StreamProtocol.UDP_DISCOVERY_PORT)
 
                 Log.d("UdpBeacon", "Starting broadcast: ${String(payload, StandardCharsets.UTF_8)} on port ${StreamProtocol.UDP_DISCOVERY_PORT}")
 
                 while (isRunning.get()) {
                     try {
-                        socket.send(packet)
+                        // Broadcast to all interface-specific broadcast addresses
                         sendToAllInterfaces(socket, payload)
                     } catch (e: Exception) {
                         if (isRunning.get()) Log.w("UdpBeacon", "Broadcast send error", e)
@@ -85,6 +82,7 @@ class UdpBeaconBroadcaster : Service() {
 
     private fun sendToAllInterfaces(socket: DatagramSocket, payload: ByteArray) {
         try {
+            var sent = false
             val interfaces = NetworkInterface.getNetworkInterfaces()
             while (interfaces.hasMoreElements()) {
                 val ni = interfaces.nextElement()
@@ -93,10 +91,22 @@ class UdpBeaconBroadcaster : Service() {
                     address.broadcast?.let { broadcast ->
                         try {
                             socket.send(DatagramPacket(payload, payload.size, broadcast, StreamProtocol.UDP_DISCOVERY_PORT))
+                            sent = true
+                            Log.d("UdpBeacon", "Sent to broadcast ${broadcast.hostAddress} on ${ni.name}")
                         } catch (e: Exception) {
                             // Ignore per-interface errors
                         }
                     }
+                }
+            }
+            // Fallback: limited broadcast (255.255.255.255) for interfaces without explicit broadcast addr
+            if (!sent) {
+                try {
+                    val limitedBroadcast = InetAddress.getByName("255.255.255.255")
+                    socket.send(DatagramPacket(payload, payload.size, limitedBroadcast, StreamProtocol.UDP_DISCOVERY_PORT))
+                    Log.d("UdpBeacon", "Sent to limited broadcast 255.255.255.255")
+                } catch (e: Exception) {
+                    Log.w("UdpBeacon", "Limited broadcast failed", e)
                 }
             }
         } catch (e: Exception) {

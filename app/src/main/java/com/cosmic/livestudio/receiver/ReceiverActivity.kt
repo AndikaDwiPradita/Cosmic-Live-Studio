@@ -314,13 +314,11 @@ class ReceiverActivity : AppCompatActivity(), SurfaceHolder.Callback {
         val input = BufferedInputStream(socket.getInputStream())
         val header = ByteArray(StreamProtocol.HEADER_SIZE)
 
-        // First, handle pairing handshake if manual pairing
-        if (radioManualPairing.isChecked) {
-            val handshakeSuccess = performPairingHandshake(socket)
-            if (!handshakeSuccess) {
-                runOnUiThread { disconnect() }
-                return
-            }
+        // Always perform pairing handshake (both UDP and Manual modes)
+        val handshakeSuccess = performPairingHandshake(socket)
+        if (!handshakeSuccess) {
+            runOnUiThread { disconnect() }
+            return
         }
 
         // Now handle video stream
