@@ -1,5 +1,6 @@
 package com.cosmic.livestudio.sender
 
+import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
@@ -12,6 +13,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.os.PowerManager
 import android.util.DisplayMetrics
 import android.util.Log
 import android.view.WindowManager
@@ -23,7 +25,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import java.net.ServerSocket
 import java.net.Socket
 import java.util.concurrent.atomic.AtomicBoolean
@@ -45,11 +49,26 @@ class ScreenCaptureService : Service() {
     private var streamHeight = 720
     private var streamFps = 30
     private var streamBitrate = 3_500_000
+    private var wakeLock: PowerManager.WakeLock? = null
 
     override fun onCreate() {
         super.onCreate()
         notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         createNotificationChannel()
+        acquireWakeLock()
+    }
+
+    private fun acquireWakeLock() {
+        val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+        wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "CosmicLive::WakeLock")
+        wakeLock?.acquire()
+        Log.d("ScreenCapture", "WakeLock acquired")
+    }
+
+    private fun releaseWakeLock() {
+        wakeLock?.release()
+        wakeLock = null
+        Log.d("ScreenCapture", "WakeLock released")
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -87,12 +106,17 @@ class ScreenCaptureService : Service() {
     private fun startCapture(projection: MediaProjection) {
         if (isRunning.getAndSet(true)) return
         mediaProjection = projection
-        val newEncoder = H264ScreenEncoder(streamWidth, streamHeight, streamFps, streamBitrate) { data, _ ->
-            if (isRunning.get()) frameChannel.trySend(data to true)
+
+        // Create encoder with proper keyframe handling
+        val newEncoder = H264ScreenEncoder(streamWidth, streamHeight, streamFps, streamBitrate) { data, isKeyframe ->
+            if (isRunning.get()) {
+                frameChannel.trySend(data to isKeyframe)
+            }
         }
         encoder = newEncoder
         val surface = newEncoder.start()
         if (surface == null) {
+            Log.e("ScreenCapture", "Failed to start encoder")
             stopCapture()
             return
         }
@@ -104,20 +128,29 @@ class ScreenCaptureService : Service() {
             "CosmicLiveScreenCapture", streamWidth, streamHeight, metrics.densityDpi,
             0, surface, null, Handler(Looper.getMainLooper())
         )
+
+        if (virtualDisplay == null) {
+            Log.e("ScreenCapture", "Failed to create virtual display")
+            stopCapture()
+            return
+        }
+
         startTcpServer()
         startUdpBeacon()
         showNotification()
+        Log.d("ScreenCapture", "Capture started: ${streamWidth}x${streamHeight} @ ${streamFps}fps, code: $currentPairingCode")
     }
 
     private fun restartEncoder() {
         if (!isRunning.get()) return
         encoder?.stop()
-        val newEncoder = H264ScreenEncoder(streamWidth, streamHeight, streamFps, streamBitrate) { data, _ ->
-            if (isRunning.get()) frameChannel.trySend(data to true)
+        val newEncoder = H264ScreenEncoder(streamWidth, streamHeight, streamFps, streamBitrate) { data, isKeyframe ->
+            if (isRunning.get()) frameChannel.trySend(data to isKeyframe)
         }
         encoder = newEncoder
         val surface = newEncoder.start()
-        surface?.let { virtualDisplay?.setSurface(it) } ?: run { stopCapture(); return }
+        surface?.let { virtualDisplay?.setSurface(it) } ?: run { Log.e("ScreenCapture", "Restart encoder failed"); stopCapture() }
+        Log.d("ScreenCapture", "Encoder restarted with new settings")
     }
 
     private fun startTcpServer() {
@@ -126,13 +159,22 @@ class ScreenCaptureService : Service() {
                 val socket = ServerSocket(currentTcpPort).apply {
                     reuseAddress = true
                     soTimeout = 1000
+                    setReceiveBufferSize(256 * 1024)
                 }
                 serverSocket = socket
+                Log.d("ScreenCapture", "TCP server listening on port $currentTcpPort")
+
                 while (isRunning.get()) {
                     try {
-                        val client = socket.accept().apply { tcpNoDelay = true }
+                        val client = socket.accept().apply {
+                            tcpNoDelay = true
+                            setSendBufferSize(256 * 1024)
+                            soTimeout = 5000
+                        }
+                        Log.d("ScreenCapture", "Client connected: ${client.inetAddress}")
                         handleClient(client)
                     } catch (_: java.net.SocketTimeoutException) {
+                        // Timeout - continue loop
                     } catch (e: Exception) {
                         if (isRunning.get()) Log.w("ScreenCapture", "Accept error", e)
                     }
@@ -140,29 +182,52 @@ class ScreenCaptureService : Service() {
             } catch (e: Exception) {
                 Log.e("ScreenCapture", "TCP server error", e)
             }
+            Log.d("ScreenCapture", "TCP server stopped")
         }
     }
 
     private suspend fun handleClient(socket: Socket) {
-        clientSocketRef.getAndSet(socket)?.close()
+        val previousSocket = clientSocketRef.getAndSet(socket)
+        previousSocket?.close()
+
+        // Send config packet immediately
         sendPacket(socket, StreamProtocol.createConfigPacket(streamWidth, streamHeight, streamFps, streamBitrate))
+
         try {
             val output = socket.getOutputStream()
             while (isRunning.get() && !socket.isClosed && clientSocketRef.get() == socket) {
-                val (data, _) = frameChannel.receive()
-                output.write(StreamProtocol.createPacketFromNal(data))
-                output.flush()
+                // Use non-blocking receive with timeout to allow checking connection state
+                val frameData = withTimeoutOrNull(1000) { frameChannel.receive() }
+                if (frameData == null) continue // Timeout - check loop condition
+
+                val (data, isKeyframe) = frameData
+                try {
+                    output.write(StreamProtocol.createPacketFromNal(data))
+                    output.flush()
+                } catch (e: Exception) {
+                    Log.w("ScreenCapture", "Write error, closing connection", e)
+                    break
+                }
             }
         } catch (e: Exception) {
             Log.w("ScreenCapture", "Client handling error", e)
         } finally {
-            if (clientSocketRef.compareAndSet(socket, null)) socket.close()
+            if (clientSocketRef.compareAndSet(socket, null)) {
+                try { socket.close() } catch (_: Exception) {}
+            }
+            Log.d("ScreenCapture", "Client disconnected")
         }
     }
 
     private fun sendPacket(socket: Socket, packet: ByteArray) {
-        socket.getOutputStream().write(packet)
-        socket.getOutputStream().flush()
+        try {
+            val output = socket.getOutputStream()
+            output.write(packet)
+            output.flush()
+        } catch (e: Exception) {
+            Log.e("ScreenCapture", "Failed to send packet", e)
+            throw RuntimeException("Failed to send packet", e)
+        }
     }
 
     private fun startUdpBeacon() {
@@ -180,18 +245,27 @@ class ScreenCaptureService : Service() {
 
     private fun stopCapture() {
         if (!isRunning.getAndSet(false)) return
+        Log.d("ScreenCapture", "Stopping capture...")
+
         encoder?.stop()
         encoder = null
+
         virtualDisplay?.release()
         virtualDisplay = null
+
         mediaProjection?.stop()
         mediaProjection = null
+
         serverSocket?.close()
         serverSocket = null
+
         clientSocketRef.getAndSet(null)?.close()
+
         tcpJob?.cancel()
         tcpJob = null
+
         stopUdpBeacon()
+        releaseWakeLock()
         stopForeground(true)
         stopSelf()
     }
@@ -210,8 +284,14 @@ class ScreenCaptureService : Service() {
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(NOTIFICATION_CHANNEL_ID, getString(R.string.notification_channel_sender), NotificationManager.IMPORTANCE_LOW)
-            channel.description = "Screen sharing broadcast service"
+            val channel = NotificationChannel(
+                NOTIFICATION_CHANNEL_ID,
+                getString(R.string.notification_channel_sender),
+                NotificationManager.IMPORTANCE_LOW
+            ).apply {
+                description = "Screen sharing broadcast service"
+                setShowBadge(false)
+            }
             notificationManager?.createNotificationChannel(channel)
         }
     }

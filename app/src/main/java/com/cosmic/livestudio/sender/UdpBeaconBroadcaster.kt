@@ -16,6 +16,7 @@ import java.net.DatagramPacket
 import java.net.DatagramSocket
 import java.net.InetAddress
 import java.net.NetworkInterface
+import java.net.InetSocketAddress
 import java.util.concurrent.atomic.AtomicBoolean
 
 class UdpBeaconBroadcaster : Service() {
@@ -30,18 +31,19 @@ class UdpBeaconBroadcaster : Service() {
         super.onCreate()
         val wifiManager = getSystemService(WIFI_SERVICE) as WifiManager
         multicastLock = wifiManager.createMulticastLock("CosmicLiveUdpLock").apply {
-            setReferenceCounted(true)
+            isReferenceCounted = true
             acquire()
         }
+        Log.d("UdpBeacon", "Service created, MulticastLock acquired")
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         pairingCode = intent?.getStringExtra(EXTRA_PAIRING_CODE) ?: ""
         tcpPort = intent?.getIntExtra(EXTRA_TCP_PORT, StreamProtocol.TCP_STREAMING_PORT) ?: StreamProtocol.TCP_STREAMING_PORT
-        if (intent?.action == ACTION_STOP) {
-            stopBroadcasting()
-        } else if (pairingCode.isNotEmpty() && !isRunning.get()) {
-            startBroadcasting()
+
+        when (intent?.action) {
+            ACTION_STOP -> stopBroadcasting()
+            ACTION_START -> if (pairingCode.isNotEmpty() && !isRunning.get()) startBroadcasting()
         }
         return START_STICKY
     }
@@ -53,16 +55,20 @@ class UdpBeaconBroadcaster : Service() {
                 val socket = DatagramSocket().apply {
                     broadcast = true
                     reuseAddress = true
+                    // Bind to any available port for sending
                 }
                 datagramSocket = socket
+
                 val payload = StreamProtocol.createDiscoveryPayload(pairingCode, tcpPort).toByteArray()
                 val broadcastAddress = InetAddress.getByName("255.255.255.255")
                 val packet = DatagramPacket(payload, payload.size, broadcastAddress, StreamProtocol.UDP_DISCOVERY_PORT)
 
+                Log.d("UdpBeacon", "Starting broadcast: ${String(payload)} on port ${StreamProtocol.UDP_DISCOVERY_PORT}")
+
                 while (isRunning.get()) {
                     try {
                         socket.send(packet)
-                        sendToAllInterfaces(payload)
+                        sendToAllInterfaces(socket, payload)
                     } catch (e: Exception) {
                         if (isRunning.get()) Log.w("UdpBeacon", "Broadcast send error", e)
                     }
@@ -76,16 +82,19 @@ class UdpBeaconBroadcaster : Service() {
         }
     }
 
-    private fun sendToAllInterfaces(payload: ByteArray) {
+    private fun sendToAllInterfaces(socket: DatagramSocket, payload: ByteArray) {
         try {
-            val socket = datagramSocket ?: return
             val interfaces = NetworkInterface.getNetworkInterfaces()
             while (interfaces.hasMoreElements()) {
                 val ni = interfaces.nextElement()
                 if (!ni.isUp || ni.isLoopback || ni.isVirtual) continue
                 ni.interfaceAddresses.forEach { address ->
                     address.broadcast?.let { broadcast ->
-                        socket.send(DatagramPacket(payload, payload.size, broadcast, StreamProtocol.UDP_DISCOVERY_PORT))
+                        try {
+                            socket.send(DatagramPacket(payload, payload.size, broadcast, StreamProtocol.UDP_DISCOVERY_PORT))
+                        } catch (e: Exception) {
+                            // Ignore per-interface errors
+                        }
                     }
                 }
             }
@@ -100,12 +109,14 @@ class UdpBeaconBroadcaster : Service() {
         datagramSocket = null
         broadcastJob?.cancel()
         broadcastJob = null
+        Log.d("UdpBeacon", "Broadcasting stopped")
     }
 
     override fun onDestroy() {
         stopBroadcasting()
         multicastLock?.release()
         multicastLock = null
+        Log.d("UdpBeacon", "Service destroyed, MulticastLock released")
         super.onDestroy()
     }
 

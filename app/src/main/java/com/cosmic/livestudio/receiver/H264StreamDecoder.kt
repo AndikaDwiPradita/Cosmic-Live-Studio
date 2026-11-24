@@ -40,10 +40,13 @@ class H264StreamDecoder(
         if (isRunning.getAndSet(true)) return
         decoderJob = CoroutineScope(Dispatchers.IO).launch { decoderLoop() }
         statsJob = CoroutineScope(Dispatchers.IO).launch { statsLoop() }
+        Log.d("H264Decoder", "Decoder started")
     }
 
     fun queueFrame(data: ByteArray) {
-        if (isRunning.get()) frameChannel.trySend(data)
+        if (isRunning.get()) {
+            frameChannel.trySend(data)
+        }
     }
 
     private suspend fun decoderLoop() {
@@ -58,11 +61,17 @@ class H264StreamDecoder(
                     StreamProtocol.FRAME_TYPE_PPS -> handlePps(payload)
                     StreamProtocol.FRAME_TYPE_CONFIG -> handleConfig(payload)
                     StreamProtocol.FRAME_TYPE_IDR, StreamProtocol.FRAME_TYPE_P -> {
-                        if (formatConfigured) queueToDecoder(payload, frameType == StreamProtocol.FRAME_TYPE_IDR)
+                        if (formatConfigured) {
+                            queueToDecoder(payload, frameType == StreamProtocol.FRAME_TYPE_IDR)
+                        } else {
+                            Log.d("H264Decoder", "Dropping frame - decoder not configured yet (type=$frameType)")
+                        }
                     }
                     StreamProtocol.FRAME_TYPE_EOS -> break
+                    else -> Log.d("H264Decoder", "Unknown frame type: $frameType")
                 }
             } catch (e: Exception) {
+                Log.e("H264Decoder", "Decoder loop error", e)
                 if (isRunning.get()) onError("Decoder error: ${e.message}")
             }
         }
@@ -71,19 +80,23 @@ class H264StreamDecoder(
     private fun handleSps(sps: ByteArray) {
         spsData = stripAnnexBStartCode(sps)
         spsReceived = true
+        Log.d("H264Decoder", "SPS received, size: ${spsData?.size}")
         tryConfigureFormat()
     }
 
     private fun handlePps(pps: ByteArray) {
         ppsData = stripAnnexBStartCode(pps)
         ppsReceived = true
+        Log.d("H264Decoder", "PPS received, size: ${ppsData?.size}")
         tryConfigureFormat()
     }
 
     private fun stripAnnexBStartCode(data: ByteArray): ByteArray {
         return when {
-            data.size >= 4 && data[0] == 0.toByte() && data[1] == 0.toByte() && data[2] == 0.toByte() && data[3] == 1.toByte() -> data.copyOfRange(4, data.size)
-            data.size >= 3 && data[0] == 0.toByte() && data[1] == 0.toByte() && data[2] == 1.toByte() -> data.copyOfRange(3, data.size)
+            data.size >= 4 && data[0] == 0.toByte() && data[1] == 0.toByte() && data[2] == 0.toByte() && data[3] == 1.toByte() ->
+                data.copyOfRange(4, data.size)
+            data.size >= 3 && data[0] == 0.toByte() && data[1] == 0.toByte() && data[2] == 1.toByte() ->
+                data.copyOfRange(3, data.size)
             else -> data
         }
     }
@@ -92,12 +105,15 @@ class H264StreamDecoder(
         StreamProtocol.parseConfigPacket(payload)?.let {
             width = it.width
             height = it.height
+            Log.d("H264Decoder", "Config received: ${it.width}x${it.height} @ ${it.fps}fps")
             tryConfigureFormat()
         }
     }
 
     private fun tryConfigureFormat() {
-        if (spsReceived && ppsReceived && !formatConfigured && width > 0 && height > 0) configureDecoder()
+        if (spsReceived && ppsReceived && !formatConfigured && width > 0 && height > 0) {
+            configureDecoder()
+        }
     }
 
     private fun configureDecoder() {
@@ -111,7 +127,9 @@ class H264StreamDecoder(
             codec.configure(format, surface, null, 0)
             codec.start()
             formatConfigured = true
+            Log.d("H264Decoder", "Decoder configured: ${width}x$height")
         } catch (e: Exception) {
+            Log.e("H264Decoder", "Failed to configure decoder", e)
             onError("Gagal mengkonfigurasi decoder: ${e.message}")
         }
     }
@@ -129,6 +147,8 @@ class H264StreamDecoder(
                 codec.queueInputBuffer(inputIndex, 0, cleanPayload.size, System.nanoTime() / 1000, flags)
                 frameCount.incrementAndGet()
                 byteCount.addAndGet(cleanPayload.size.toLong())
+            } else {
+                Log.w("H264Decoder", "No input buffer available")
             }
             drainOutput()
         } catch (e: Exception) {
@@ -141,8 +161,11 @@ class H264StreamDecoder(
         val info = MediaCodec.BufferInfo()
         while (true) {
             val index = codec.dequeueOutputBuffer(info, 0)
-            if (index >= 0) codec.releaseOutputBuffer(index, info.size > 0)
-            else break
+            if (index >= 0) {
+                codec.releaseOutputBuffer(index, info.size > 0)
+            } else {
+                break
+            }
         }
     }
 
@@ -170,6 +193,16 @@ class H264StreamDecoder(
         decoderJob = null
         statsJob = null
         try {
+            mediaCodec?.signalEndOfInputStream()
+            val info = MediaCodec.BufferInfo()
+            while (true) {
+                val index = mediaCodec?.dequeueOutputBuffer(info, 10_000L) ?: break
+                if (index >= 0) {
+                    mediaCodec?.releaseOutputBuffer(index, true)
+                } else {
+                    break
+                }
+            }
             mediaCodec?.stop()
             mediaCodec?.release()
         } catch (e: Exception) {
@@ -177,6 +210,11 @@ class H264StreamDecoder(
         } finally {
             mediaCodec = null
             formatConfigured = false
+            spsReceived = false
+            ppsReceived = false
+            spsData = null
+            ppsData = null
         }
+        Log.d("H264Decoder", "Decoder stopped")
     }
 }
