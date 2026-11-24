@@ -8,7 +8,7 @@
     <string name="ip_local_label">IP Lokal:</string>
     <string name="tcp_port_label">Port TCP:</string>
     <string name="qr_code_label">QR Code (Pindai di HP 1)</string>
-    <string name="btn_copy_ip_port">Salin IP & Port</string>
+    <string name="btn_copy_ip_port">Salin IP &amp; Port</string>
     <string name="share_this_code">Bagikan info ini ke perangkat penerima</string>
 
     <!-- Receiver UI -->
