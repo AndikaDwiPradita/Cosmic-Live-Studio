@@ -161,7 +161,7 @@ class SenderActivity : AppCompatActivity() {
     private fun startCaptureService(projectionData: Intent) {
         val intent = Intent(this, ScreenCaptureService::class.java).apply {
             action = ScreenCaptureService.ACTION_START
-            putExtra(MediaProjectionManager.EXTRA_MEDIA_PROJECTION, projectionData)
+            putExtra(ScreenCaptureService.EXTRA_PROJECTION_DATA, projectionData)
             putExtra(ScreenCaptureService.EXTRA_PAIRING_CODE, pairingCode)
             putExtra(ScreenCaptureService.EXTRA_TCP_PORT, 45455)
             putExtra(ScreenCaptureService.EXTRA_WIDTH, currentWidth)

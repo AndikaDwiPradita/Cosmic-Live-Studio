@@ -5,9 +5,9 @@ import android.app.NotificationManager
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.hardware.display.VirtualDisplay
 import android.media.projection.MediaProjection
 import android.media.projection.MediaProjectionManager
-import android.media.projection.VirtualDisplay
 import android.os.Build
 import android.os.Handler
 import android.os.IBinder
@@ -56,9 +56,9 @@ class ScreenCaptureService : Service() {
         when (intent?.action) {
             ACTION_START -> {
                 val projectionData = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    intent.getParcelableExtra(MediaProjectionManager.EXTRA_MEDIA_PROJECTION, Intent::class.java)
+                    intent.getParcelableExtra(EXTRA_PROJECTION_DATA, Intent::class.java)
                 } else {
-                    @Suppress("DEPRECATION") intent.getParcelableExtra(MediaProjectionManager.EXTRA_MEDIA_PROJECTION)
+                    @Suppress("DEPRECATION") intent.getParcelableExtra(EXTRA_PROJECTION_DATA)
                 }
                 currentPairingCode = intent.getStringExtra(EXTRA_PAIRING_CODE) ?: generatePairingCode()
                 currentTcpPort = intent.getIntExtra(EXTRA_TCP_PORT, StreamProtocol.TCP_STREAMING_PORT)
@@ -229,6 +229,7 @@ class ScreenCaptureService : Service() {
         const val ACTION_START = "com.cosmic.livestudio.action.START_CAPTURE"
         const val ACTION_STOP = "com.cosmic.livestudio.action.STOP_CAPTURE"
         const val ACTION_UPDATE_SETTINGS = "com.cosmic.livestudio.action.UPDATE_SETTINGS"
+        const val EXTRA_PROJECTION_DATA = "com.cosmic.livestudio.extra.MEDIA_PROJECTION_DATA"
         const val EXTRA_PAIRING_CODE = "pairing_code"
         const val EXTRA_TCP_PORT = "tcp_port"
         const val EXTRA_WIDTH = "width"
