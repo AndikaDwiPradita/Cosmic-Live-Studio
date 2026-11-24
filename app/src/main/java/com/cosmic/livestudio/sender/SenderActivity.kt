@@ -24,6 +24,7 @@ import androidx.core.content.ContextCompat
 import com.cosmic.livestudio.R
 import com.cosmic.livestudio.network.NetworkUtils
 import com.cosmic.livestudio.network.PairingInfo
+import com.cosmic.livestudio.network.StreamProtocol
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.WriterException
 import com.google.zxing.qrcode.QRCodeWriter
@@ -176,7 +177,7 @@ class SenderActivity : AppCompatActivity() {
             val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
             for (x in 0 until size) {
                 for (y in 0 until size) {
-                    bitmap.setPixel(x, y, if (bitMatrix[x, y]) 0xFF000000 else 0xFFFFFFFF)
+                    bitmap.setPixel(x, y, if (bitMatrix[x, y]) 0xFF000000.toInt() else 0xFFFFFFFF.toInt())
                 }
             }
             return bitmap

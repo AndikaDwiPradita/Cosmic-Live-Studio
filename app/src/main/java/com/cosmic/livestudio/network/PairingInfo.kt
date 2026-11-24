@@ -1,11 +1,9 @@
 package com.cosmic.livestudio.network
 
-import android.net.NetworkInterface
 import android.util.Log
 import java.net.InetAddress
-import java.net.NetworkInterface as JNetworkInterface
+import java.net.NetworkInterface
 import java.net.SocketException
-import java.util.Enumeration
 
 /**
  * Data class for pairing information shared between sender and receiver.
@@ -20,7 +18,7 @@ data class PairingInfo(
      * Validates the pairing info fields.
      */
     fun isValid(): Boolean {
-        return isValidIp(ip) && port in 1..65535 && code.length == 6 && code.all { it.isDigit() }
+        return NetworkUtils.isValidIp(ip) && port in 1..65535 && code.length == 6 && code.all { it.isDigit() }
     }
 
     /**
@@ -72,7 +70,7 @@ object NetworkUtils {
      */
     fun getLocalIpAddress(): String? {
         try {
-            val interfaces = JNetworkInterface.getNetworkInterfaces()
+            val interfaces = NetworkInterface.getNetworkInterfaces()
             while (interfaces.hasMoreElements()) {
                 val ni = interfaces.nextElement()
                 if (!ni.isUp || ni.isLoopback || ni.isVirtual) continue
@@ -81,7 +79,7 @@ object NetworkUtils {
                 while (addresses.hasMoreElements()) {
                     val address = addresses.nextElement()
                     if (address.isLoopbackAddress) continue
-                    val hostAddress = address.hostAddress
+                    val hostAddress = address.hostAddress ?: continue
                     // Prefer IPv4 (no colons) and filter out link-local (169.254.x.x)
                     if (!hostAddress.contains(":") && !hostAddress.startsWith("169.254.")) {
                         Log.d(TAG, "Found local IP: $hostAddress on interface ${ni.name}")

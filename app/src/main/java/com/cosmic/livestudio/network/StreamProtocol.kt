@@ -21,7 +21,8 @@ object StreamProtocol {
     const val FRAME_TYPE_B = 0x05
     const val FRAME_TYPE_CONFIG = 0x06
     const val FRAME_TYPE_HEARTBEAT = 0x07
-    const val FRAME_TYPE_EOS = 0xFF.toByte()
+    // Keep frame types as Int because packet headers encode them as 32-bit integers.
+    const val FRAME_TYPE_EOS = 0xFF
 
     // Pairing/Control Frame Types (0x10-0x1F range)
     const val FRAME_TYPE_PAIR_REQUEST = 0x10    // Receiver -> Sender: {code}
