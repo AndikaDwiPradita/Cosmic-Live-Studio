@@ -4,6 +4,8 @@ import android.content.Intent
 import android.os.Bundle
 import android.widget.Button
 import androidx.appcompat.app.AppCompatActivity
+import com.cosmic.livestudio.receiver.ReceiverActivity
+import com.cosmic.livestudio.sender.SenderActivity
 
 class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -14,13 +16,11 @@ class MainActivity : AppCompatActivity() {
         val btnReceiverMode = findViewById<Button>(R.id.btnReceiverMode)
 
         btnSenderMode.setOnClickListener {
-            val intent = Intent(this, SenderActivity::class.java)
-            startActivity(intent)
+            startActivity(Intent(this, SenderActivity::class.java))
         }
 
         btnReceiverMode.setOnClickListener {
-            val intent = Intent(this, ReceiverActivity::class.java)
-            startActivity(intent)
+            startActivity(Intent(this, ReceiverActivity::class.java))
         }
     }
 }
