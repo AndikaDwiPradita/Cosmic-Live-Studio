@@ -106,11 +106,10 @@
                         android:gap="12dp">
 
                         <TextView
-                            android:layout_width="wrap_content"
+                            android:layout_width="80dp"
                             android:layout_height="wrap_content"
                             android:text="IP Lokal:"
-                            android:textAppearance="@style/TextAppearance.CosmicLiveStudio.Body"
-                            android:layout_width="80dp" />
+                            android:textAppearance="@style/TextAppearance.CosmicLiveStudio.Body" />
 
                         <TextView
                             android:id="@+id/tvLocalIp"
@@ -132,11 +131,10 @@
                         android:gap="12dp">
 
                         <TextView
-                            android:layout_width="wrap_content"
+                            android:layout_width="80dp"
                             android:layout_height="wrap_content"
                             android:text="Port TCP:"
-                            android:textAppearance="@style/TextAppearance.CosmicLiveStudio.Body"
-                            android:layout_width="80dp" />
+                            android:textAppearance="@style/TextAppearance.CosmicLiveStudio.Body" />
 
                         <TextView
                             android:id="@+id/tvPort"
