@@ -20,7 +20,7 @@ object StreamProtocol {
     const val FRAME_TYPE_B = 0x05
     const val FRAME_TYPE_CONFIG = 0x06
     const val FRAME_TYPE_HEARTBEAT = 0x07
-    const val FRAME_TYPE_EOS = 0xFF.toByte()
+    const val FRAME_TYPE_EOS = 0xFF
 
     // Header size in bytes
     const val HEADER_SIZE = 8

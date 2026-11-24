@@ -12,7 +12,7 @@ import kotlinx.coroutines.launch
 import java.net.DatagramPacket
 import java.net.DatagramSocket
 import java.net.InetSocketAddress
-import java.nio.charset.Charsets
+import java.nio.charset.StandardCharsets
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
@@ -33,7 +33,7 @@ class UdpPairingResolver(
 
         val wifiManager = context.getSystemService(Context.WIFI_SERVICE) as WifiManager
         multicastLock = wifiManager.createMulticastLock("CosmicLiveUdpResolverLock").apply {
-            isReferenceCounted = true
+            setReferenceCounted(true)
             acquire()
         }
 
@@ -59,7 +59,7 @@ class UdpPairingResolver(
                     }
                     try {
                         socket.receive(packet)
-                        val receivedData = String(buffer, 0, packet.length, Charsets.UTF_8)
+                        val receivedData = String(buffer, 0, packet.length, StandardCharsets.UTF_8)
                         val senderIp = packet.address.hostAddress ?: continue
                         val info = StreamProtocol.parseDiscoveryPayload(receivedData)
                         if (info != null && info.app == StreamProtocol.DISCOVERY_APP_ID && info.code == targetPairingCode) {

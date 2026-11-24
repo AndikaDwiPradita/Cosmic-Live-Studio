@@ -17,6 +17,7 @@ import java.net.DatagramSocket
 import java.net.InetAddress
 import java.net.NetworkInterface
 import java.net.InetSocketAddress
+import java.nio.charset.StandardCharsets
 import java.util.concurrent.atomic.AtomicBoolean
 
 class UdpBeaconBroadcaster : Service() {
@@ -31,7 +32,7 @@ class UdpBeaconBroadcaster : Service() {
         super.onCreate()
         val wifiManager = getSystemService(WIFI_SERVICE) as WifiManager
         multicastLock = wifiManager.createMulticastLock("CosmicLiveUdpLock").apply {
-            isReferenceCounted = true
+            setReferenceCounted(true)
             acquire()
         }
         Log.d("UdpBeacon", "Service created, MulticastLock acquired")
@@ -59,11 +60,11 @@ class UdpBeaconBroadcaster : Service() {
                 }
                 datagramSocket = socket
 
-                val payload = StreamProtocol.createDiscoveryPayload(pairingCode, tcpPort).toByteArray()
+                val payload = StreamProtocol.createDiscoveryPayload(pairingCode, tcpPort).toByteArray(StandardCharsets.UTF_8)
                 val broadcastAddress = InetAddress.getByName("255.255.255.255")
                 val packet = DatagramPacket(payload, payload.size, broadcastAddress, StreamProtocol.UDP_DISCOVERY_PORT)
 
-                Log.d("UdpBeacon", "Starting broadcast: ${String(payload)} on port ${StreamProtocol.UDP_DISCOVERY_PORT}")
+                Log.d("UdpBeacon", "Starting broadcast: ${String(payload, StandardCharsets.UTF_8)} on port ${StreamProtocol.UDP_DISCOVERY_PORT}")
 
                 while (isRunning.get()) {
                     try {
