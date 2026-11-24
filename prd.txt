@@ -1,0 +1,115 @@
+INSTRUKSI SETUP ENVIRONMENT & BUILD WORKFLOW (OPENCODE)
+Jalankan seluruh langkah persiapan, pembuatan struktur kode, dan konfigurasi build berikut secara otomatis dengan aturan ketat:
+ * Direktori Utama Project:
+   * Buat dan gunakan direktori "/home/tiny/Documents/Cosmic Live Studio" sebagai root folder untuk seluruh file project, source code Android, dokumentasi, dan konfigurasi CI/CD.
+   * Jangan meletakkan file project di luar direktori tersebut.
+   * Selalu gunakan tanda kutip pada path "/home/tiny/Documents/Cosmic Live Studio" saat menjalankan perintah shell karena terdapat spasi pada nama folder.
+ * Setup Tools di Container Debian 13 (ARM64 / Low-RAM Environment):
+   * Lingkungan host berjalan di atas Tiny Container Debian 13 (ARM64) pada perangkat dengan keterbatasan RAM (Redmi Note 8). Dilarang menginstall Android Studio atau menjalankan kompilasi Gradle berat secara lokal untuk menghindari Out of Memory (OOM).
+   * Periksa dan install hanya paket CLI ringan berikut jika belum tersedia:
+     sudo apt update && sudo apt install -y git gh openjdk-17-jdk-headless curl unzip
+
+   * Pastikan Gradle Wrapper (gradlew, gradle/wrapper/gradle-wrapper.jar, gradle/wrapper/gradle-wrapper.properties) ter-generate atau terkonfigurasi lengkap di dalam "/home/tiny/Documents/Cosmic Live Studio" agar GitHub Actions dapat langsung menjalankannya.
+ * Konfigurasi Git & GitHub Actions Cloud Build:
+   * Inisialisasi Git di dalam "/home/tiny/Documents/Cosmic Live Studio" dengan .gitignore standar Android (mengecualikan .gradle/, build/, local.properties, *.apk lokal).
+   * Buat file workflow GitHub Actions di "/home/tiny/Documents/Cosmic Live Studio/.github/workflows/build-apk.yml" dengan spesifikasi:
+     * Trigger pada push ke branch main dan workflow_dispatch.
+     * Runner: ubuntu-latest.
+     * Setup Java 17 (actions/setup-java@v4, distribution temurin).
+     * Setup Gradle (gradle/actions/setup-gradle@v4).
+     * Jalankan ./gradlew assembleDebug --no-daemon --stacktrace.
+     * Upload hasil build app/build/outputs/apk/debug/app-debug.apk menggunakan actions/upload-artifact@v4 dengan nama artifact Cosmic-Live-Studio-Debug-APK.
+   * Jika gh auth status sudah terautentikasi, buat repository GitHub baru bernama cosmic-live-studio (private/public), push seluruh isi "/home/tiny/Documents/Cosmic Live Studio", pantau jalannya workflow hingga status completed (success), dan unduh artifact .apk ke folder "/home/tiny/Documents/Cosmic Live Studio/release/". Jika gh belum login, siapkan seluruh repository lokal agar siap langsung di-push.
+PRODUCT REQUIREMENTS DOCUMENT (PRD)
+1. Informasi Umum Produk
+ * Nama Aplikasi: Cosmic Live Studio
+ * Package Name: com.cosmic.livestudio
+ * Platform: Android (Native Kotlin)
+ * Target SDK: Minimum SDK 26 (Android 8.0), Target SDK 34 (Android 14)
+ * Lokasi Project: /home/tiny/Documents/Cosmic Live Studio
+ * Fase Pengembangan: Fase 1 — Local Wireless/USB Screen Mirroring via 6-Digit Pairing Code (Ultra-Low Latency)
+2. Tujuan Produk
+Membangun satu aplikasi Android (APK tunggal) dengan dua mode peran yang memungkinkan HP 2 (perangkat gaming) merekam dan mengirimkan tampilan layar secara real-time tanpa delay ke HP 1 (perangkat studio/monitor) di jaringan lokal yang sama menggunakan autentikasi 6-digit pairing code, tanpa perlu mengetik alamat IP secara manual.
+3. Lingkup Fitur (Scope)
+Masuk Lingkup (In-Scope — Fase 1)
+ * Pemilihan peran pada halaman utama: Mode HP 2 (Bagikan Layar) dan Mode HP 1 (Tampilkan Layar).
+ * Generator 6-Digit Numeric Pairing Code otomatis di HP 2.
+ * Auto-discovery perangkat di jaringan lokal (Wi-Fi, Mobile Hotspot, atau USB Tethering) menggunakan UDP Broadcast / NSD sehingga HP 1 menemukan IP dan port HP 2 hanya dari input 6-digit pairing code.
+ * Penangkapan layar real-time di HP 2 menggunakan MediaProjection API + hardware encoding H.264 (MediaCodec) berlatensi rendah.
+ * Pengiriman paket stream H.264 (SPS/PPS + frame NAL units) langsung melalui TCP Socket lokal ke HP 1.
+ * Penerimaan stream di HP 1, hardware decoding H.264 (MediaCodec), dan rendering langsung ke SurfaceView fullscreen tanpa buffering file.
+ * Proteksi latar belakang (ForegroundService + persistent notification + WakeLock) agar proses tidak dihentikan oleh sistem manajemen baterai agresif (seperti MIUI).
+Di Luar Lingkup (Out-of-Scope — Fase 2)
+ * Integrasi RTMP/RTMPS multistreaming ke YouTube Live dan Kick (arsitektur socket & encoder harus dibuat modular agar output stream di HP 1 mudah dihubungkan ke RTMP publisher pada pembaruan berikutnya).
+4. Alur Pengguna (User Flow)
+ * Pengguna membuka aplikasi Cosmic Live Studio di HP 1 dan HP 2 (keduanya terhubung ke Hotspot/Wi-Fi/USB Tethering yang sama).
+ * Di HP 2:
+   * Pengguna memilih tombol "HP 2 — Bagikan Layar".
+   * Aplikasi meminta izin MediaProjection (rekam layar) dan izin notifikasi (POST_NOTIFICATIONS).
+   * Setelah disetujui, aplikasi menjalankan ScreenCaptureService, menghasilkan 6-digit pairing code (misal: 482910), menampilkan kode tersebut di layar dan notifikasi, serta mulai menyiarkan paket discovery UDP di jaringan lokal.
+   * Pengguna membuka game di HP 2; proses tangkap layar tetap berjalan stabil di latar belakang.
+ * Di HP 1:
+   * Pengguna memilih tombol "HP 1 — Tampilkan Layar".
+   * Pengguna memasukkan 6-digit pairing code yang muncul di HP 2 dan menekan "Hubungkan".
+   * HP 1 mendengarkan sinyal UDP lokal yang cocok dengan kode tersebut, otomatis mendapatkan IP lokal & port TCP HP 2, lalu melakukan koneksi socket.
+   * Layar HP 1 langsung berpindah ke tampilan live preview (SurfaceView) yang menampilkan layar HP 2 secara real-time nyaris tanpa jeda, dilengkapi indikator status koneksi, resolusi, FPS, bitrate, dan tombol putuskan koneksi.
+5. Spesifikasi Teknis & Arsitektur
+ * Bahasa & UI: Kotlin, AndroidX, ViewBinding / Jetpack Compose ringan (prioritaskan efisiensi memori dan ukuran APK kecil).
+ * Networking & Discovery:
+   * UDP Discovery Port: 45454 (HP 2 mem-broadcast payload JSON/string berisi {"app":"COSMIC_LIVE","code":"XXXXXX","tcpPort":45455} setiap 1 detik selama menunggu koneksi).
+   * TCP Streaming Port: 45455 (menggunakan Socket dengan tcpNoDelay = true untuk mematikan Nagle's Algorithm demi meminimalkan latensi).
+   * Protokol Framing Paket: Header 8-byte per paket ([4 byte: tipe frame/flag][4 byte: panjang payload]) diikuti byte array NAL unit H.264 mentah agar decoder HP 1 dapat membaca batas tiap frame secara presisi tanpa korup.
+ * Video Pipeline (Ultra-Low Latency):
+   * Codec: video/avc (H.264).
+   * Resolusi Default: 720p (1280x720, menyesuaikan orientasi portrait/landscape layar HP 2), 30/60 FPS, bitrate 3.5 Mbps (dapat diubah via dropdown ringan: 480p / 720p / 1080p).
+   * Keyframe Interval (KEY_I_FRAME_INTERVAL): 1 detik agar tampilan di HP 1 cepat pulih jika terjadi packet drop jaringan.
+   * Latency Tuning: Aktifkan MediaFormat.KEY_LOW_LATENCY (jika didukung API/chipset) dan kirim segera CSD-0 (SPS) serta CSD-1 (PPS) setiap kali HP 1 baru terhubung.
+ * Permissions (AndroidManifest.xml):
+   * android.permission.INTERNET
+   * android.permission.ACCESS_NETWORK_STATE
+   * android.permission.ACCESS_WIFI_STATE
+   * android.permission.CHANGE_WIFI_MULTICAST_STATE
+   * android.permission.FOREGROUND_SERVICE
+   * android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION
+   * android.permission.FOREGROUND_SERVICE_DATA_SYNC
+   * android.permission.POST_NOTIFICATIONS
+   * android.permission.WAKE_LOCK
+6. Struktur Direktori Target
+/home/tiny/Documents/Cosmic Live Studio/
+├── .github/
+│   └── workflows/
+│       └── build-apk.yml
+├── app/
+│   ├── build.gradle.kts
+│   └── src/
+│       └── main/
+│           ├── AndroidManifest.xml
+│           ├── java/com/cosmic/livestudio/
+│           │   ├── MainActivity.kt
+│           │   ├── sender/
+│           │   │   ├── SenderActivity.kt
+│           │   │   ├── ScreenCaptureService.kt
+│           │   │   ├── H264ScreenEncoder.kt
+│           │   │   └── UdpBeaconBroadcaster.kt
+│           │   ├── receiver/
+│           │   │   ├── ReceiverActivity.kt
+│           │   │   ├── UdpPairingResolver.kt
+│           │   │   └── H264StreamDecoder.kt
+│           │   └── network/
+│           │       └── StreamProtocol.kt
+│           └── res/
+│               ├── layout/
+│               └── values/
+├── build.gradle.kts
+├── settings.gradle.kts
+├── gradle.properties
+├── gradlew
+└── gradle/wrapper/
+
+7. Kriteria Penerimaan (Acceptance Criteria)
+ * Seluruh file project tersimpan rapi di /home/tiny/Documents/Cosmic Live Studio.
+ * Workflow GitHub Actions berjalan sukses tanpa error kompilasi Gradle dan menghasilkan file app-debug.apk.
+ * Aplikasi dapat diinstall dan dijalankan di HP 1 dan HP 2.
+ * Input 6-digit pairing code di HP 1 berhasil menemukan IP HP 2 secara otomatis di jaringan lokal tanpa input IP manual.
+ * Tampilan layar HP 2 muncul secara real-time di SurfaceView HP 1 dengan latensi minimal (< 150 ms pada jaringan 5GHz / USB Tethering) dan tidak terputus saat aplikasi game dibuka di HP 2.
+   

@@ -1,0 +1,222 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/black"
+    android:fitsSystemWindows="true">
+
+    <!-- SurfaceView for video rendering -->
+    <SurfaceView
+        android:id="@+id/surfaceView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- Top Overlay - Status & Stats -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/cardTopOverlay"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_margin="16dp"
+        android:background="@color/overlay_dark"
+        app:cardBackgroundColor="@color/overlay_dark"
+        app:cardCornerRadius="12dp"
+        app:cardElevation="8dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp"
+            android:gap="12dp">
+
+            <!-- Status Row -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:gap="12dp">
+
+                <TextView
+                    android:id="@+id/tvReceiverStatus"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/status_disconnected"
+                    android:textAppearance="@style/TextAppearance.CosmicLiveStudio.Title"
+                    android:textColor="@color/status_disconnected" />
+
+                <View
+                    android:layout_width="0dp"
+                    android:layout_height="1dp"
+                    android:layout_weight="1" />
+
+                <TextView
+                    android:id="@+id/tvConnectionInfo"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text=""
+                    android:textAppearance="@style/TextAppearance.CosmicLiveStudio.BodySecondary" />
+            </LinearLayout>
+
+            <!-- Stats Row -->
+            <LinearLayout
+                android:id="@+id/layoutStats"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center"
+                android:gap="24dp"
+                android:visibility="gone">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:gap="2dp">
+                    <TextView
+                        android:text="@string/resolution_label"
+                        android:textAppearance="@style/TextAppearance.CosmicLiveStudio.StatLabel" />
+                    <TextView
+                        android:id="@+id/tvStatResolution"
+                        android:text="--"
+                        android:textAppearance="@style/TextAppearance.CosmicLiveStudio.StatValue" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:gap="2dp">
+                    <TextView
+                        android:text="@string/fps_label"
+                        android:textAppearance="@style/TextAppearance.CosmicLiveStudio.StatLabel" />
+                    <TextView
+                        android:id="@+id/tvStatFps"
+                        android:text="--"
+                        android:textAppearance="@style/TextAppearance.CosmicLiveStudio.StatValue" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:gap="2dp">
+                    <TextView
+                        android:text="@string/bitrate_label"
+                        android:textAppearance="@style/TextAppearance.CosmicLiveStudio.StatLabel" />
+                    <TextView
+                        android:id="@+id/tvStatBitrate"
+                        android:text="--"
+                        android:textAppearance="@style/TextAppearance.CosmicLiveStudio.StatValue" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:gap="2dp">
+                    <TextView
+                        android:text="@string/latency_label"
+                        android:textAppearance="@style/TextAppearance.CosmicLiveStudio.StatLabel" />
+                    <TextView
+                        android:id="@+id/tvStatLatency"
+                        android:text="--"
+                        android:textAppearance="@style/TextAppearance.CosmicLiveStudio.StatValue" />
+                </LinearLayout>
+            </LinearLayout>
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
+
+    <!-- Bottom Overlay - Pairing Input & Controls -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/cardBottomOverlay"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_margin="16dp"
+        android:background="@color/overlay_dark"
+        app:cardBackgroundColor="@color/overlay_dark"
+        app:cardCornerRadius="16dp"
+        app:cardElevation="8dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="24dp"
+            android:gap="16dp">
+
+            <!-- Pairing Code Input (visible when disconnected) -->
+            <LinearLayout
+                android:id="@+id/layoutPairingInput"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gap="12dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/pairing_code_title"
+                    android:textAppearance="@style/TextAppearance.CosmicLiveStudio.Title" />
+
+                <com.google.android.material.textfield.TextInputLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    style="@style/Widget.CosmicLiveStudio.TextInputLayout">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/etPairingCode"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:hint="@string/pairing_code_hint"
+                        android:inputType="number"
+                        android:maxLength="6"
+                        android:textAlignment="center"
+                        android:textSize="24sp"
+                        android:letterSpacing="0.3"
+                        android:textColor="@color/text_primary" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <Button
+                    android:id="@+id/btnConnect"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/btn_connect"
+                    style="@style/Widget.CosmicLiveStudio.Button.Primary" />
+            </LinearLayout>
+
+            <!-- Connected Controls (visible when connected) -->
+            <LinearLayout
+                android:id="@+id/layoutConnectedControls"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gap="12dp"
+                android:visibility="gone">
+
+                <Button
+                    android:id="@+id/btnDisconnect"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/btn_disconnect"
+                    style="@style/Widget.CosmicLiveStudio.Button.Danger" />
+            </LinearLayout>
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
+</androidx.constraintlayout.widget.ConstraintLayout>

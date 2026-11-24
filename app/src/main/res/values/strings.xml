@@ -1,0 +1,30 @@
+<resources>
+    <string name="app_name">Cosmic Live Studio</string>
+    <string name="mode_sender">HP 2 — Bagikan Layar</string>
+    <string name="mode_receiver">HP 1 — Tampilkan Layar</string>
+    <string name="pairing_code_hint">Masukkan 6-digit Pairing Code</string>
+    <string name="btn_connect">Hubungkan</string>
+    <string name="btn_disconnect">Putuskan</string>
+    <string name="btn_start_sharing">Mulai Bagikan Layar</string>
+    <string name="btn_stop_sharing">Berhenti Bagikan</string>
+    <string name="status_waiting">Menunggu koneksi…</string>
+    <string name="status_connecting">Menghubungkan…</string>
+    <string name="status_connected">Terhubung</string>
+    <string name="status_disconnected">Terputus</string>
+    <string name="status_error">Error</string>
+    <string name="permission_media_projection">Izin Rekam Layar diperlukan</string>
+    <string name="permission_notification">Izin Notifikasi diperlukan</string>
+    <string name="resolution_label">Resolusi:</string>
+    <string name="fps_label">FPS:</string>
+    <string name="bitrate_label">Bitrate:</string>
+    <string name="latency_label">Latency:</string>
+    <string name="pairing_code_title">Pairing Code</string>
+    <string name="your_pairing_code">Kode Pairing Anda</string>
+    <string name="share_this_code">Bagikan kode ini ke HP 1</string>
+    <string name="waiting_for_connection">Menunggu koneksi dari HP 1…</string>
+    <string name="stream_info">Informasi Stream</string>
+    <string name="notification_title_sender">Cosmic Live Studio - Berbagi Layar</string>
+    <string name="notification_text_sender">Sedang mengirim stream ke HP 1. Pairing Code: %s</string>
+    <string name="notification_channel_sender">Screen Sharing</string>
+    <string name="notification_channel_receiver">Stream Receiving</string>
+</resources>
