@@ -64,14 +64,14 @@ class UdpPairingResolver(
                     Log.e("UdpResolver", "Socket creation error", e)
                     if (isRunning.get()) onError("Error membuat socket: ${e.message}")
                     stop()
-                    return
+                    return@launch
                 }
             }
 
             if (socket == null) {
                 if (isRunning.get()) onError("Gagal bind ke port UDP setelah $maxBindRetries percobaan. Coba restart aplikasi.")
                 stop()
-                return
+                return@launch
             }
 
             val buffer = ByteArray(1024)
