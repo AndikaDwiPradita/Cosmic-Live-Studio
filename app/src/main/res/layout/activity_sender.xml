@@ -36,7 +36,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:gap="24dp"
+            
             android:paddingBottom="32dp">
 
             <!-- Status Card -->
@@ -52,7 +52,7 @@
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
                     android:padding="24dp"
-                    android:gap="16dp">
+                    >
 
                     <TextView
                         android:id="@+id/tvSenderStatus"
@@ -84,7 +84,7 @@
                     android:orientation="vertical"
                     android:padding="24dp"
                     android:gravity="center"
-                    android:gap="12dp">
+                    >
 
                     <TextView
                         android:layout_width="wrap_content"
@@ -128,7 +128,7 @@
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
                     android:padding="24dp"
-                    android:gap="16dp">
+                    >
 
                     <TextView
                         android:layout_width="wrap_content"
@@ -141,7 +141,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
-                        android:gap="16dp">
+                        >
 
                         <TextView
                             android:layout_width="0dp"
@@ -164,7 +164,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
-                        android:gap="16dp">
+                        >
 
                         <TextView
                             android:layout_width="0dp"
@@ -187,7 +187,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
-                        android:gap="16dp">
+                        >
 
                         <TextView
                             android:layout_width="0dp"

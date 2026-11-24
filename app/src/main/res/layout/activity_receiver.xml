@@ -36,7 +36,7 @@
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:padding="16dp"
-            android:gap="12dp">
+            >
 
             <!-- Status Row -->
             <LinearLayout
@@ -44,7 +44,7 @@
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:gravity="center_vertical"
-                android:gap="12dp">
+                >
 
                 <TextView
                     android:id="@+id/tvReceiverStatus"
@@ -74,7 +74,7 @@
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:gravity="center"
-                android:gap="24dp"
+                
                 android:visibility="gone">
 
                 <LinearLayout
@@ -82,7 +82,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:orientation="vertical"
-                    android:gap="2dp">
+                    >
                     <TextView
                         android:text="@string/resolution_label"
                         android:textAppearance="@style/TextAppearance.CosmicLiveStudio.StatLabel" />
@@ -97,7 +97,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:orientation="vertical"
-                    android:gap="2dp">
+                    >
                     <TextView
                         android:text="@string/fps_label"
                         android:textAppearance="@style/TextAppearance.CosmicLiveStudio.StatLabel" />
@@ -112,7 +112,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:orientation="vertical"
-                    android:gap="2dp">
+                    >
                     <TextView
                         android:text="@string/bitrate_label"
                         android:textAppearance="@style/TextAppearance.CosmicLiveStudio.StatLabel" />
@@ -127,7 +127,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:orientation="vertical"
-                    android:gap="2dp">
+                    >
                     <TextView
                         android:text="@string/latency_label"
                         android:textAppearance="@style/TextAppearance.CosmicLiveStudio.StatLabel" />
@@ -159,7 +159,7 @@
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:padding="24dp"
-            android:gap="16dp">
+            >
 
             <!-- Pairing Code Input (visible when disconnected) -->
             <LinearLayout
@@ -167,7 +167,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:gap="12dp">
+                >
 
                 <TextView
                     android:layout_width="wrap_content"
@@ -207,7 +207,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:gap="12dp"
+                
                 android:visibility="gone">
 
                 <Button
