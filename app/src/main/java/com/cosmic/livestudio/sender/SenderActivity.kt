@@ -7,11 +7,13 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
 import android.media.projection.MediaProjectionManager
 import android.os.Build
 import android.os.Bundle
 import android.widget.ArrayAdapter
 import android.widget.Button
+import android.widget.ImageView
 import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
@@ -20,15 +22,27 @@ import androidx.appcompat.widget.Toolbar
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.cosmic.livestudio.R
+import com.cosmic.livestudio.network.NetworkUtils
+import com.cosmic.livestudio.network.PairingInfo
+import com.google.zxing.BarcodeFormat
+import com.google.zxing.WriterException
+import com.google.zxing.qrcode.QRCodeWriter
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 class SenderActivity : AppCompatActivity() {
     private val MEDIA_PROJECTION_REQUEST_CODE = 1001
     private val PERMISSION_REQUEST_CODE = 1002
 
     private lateinit var tvPairingCode: TextView
+    private lateinit var tvLocalIp: TextView
+    private lateinit var tvPort: TextView
+    private lateinit var ivQrCode: ImageView
     private lateinit var tvStatus: TextView
     private lateinit var btnToggleSharing: Button
     private lateinit var btnCopyCode: Button
+    private lateinit var btnCopyConnectionInfo: Button
     private lateinit var spinnerResolution: Spinner
     private lateinit var spinnerFps: Spinner
     private lateinit var spinnerBitrate: Spinner
@@ -40,6 +54,7 @@ class SenderActivity : AppCompatActivity() {
     private var currentHeight = 720
     private var currentFps = 30
     private var currentBitrate = 3_500_000
+    private var localIpAddress = ""
 
     private val resolutions = listOf("480p (854x480)" to Pair(854, 480), "720p (1280x720)" to Pair(1280, 720), "1080p (1920x1080)" to Pair(1920, 1080))
     private val fpsOptions = listOf("30 FPS" to 30, "60 FPS" to 60)
@@ -52,6 +67,7 @@ class SenderActivity : AppCompatActivity() {
         initViews()
         setupSpinners()
         generatePairingCode()
+        loadLocalIpAddress()
         checkPermissionsAndStart()
         mediaProjectionManager = getSystemService(MediaProjectionManager::class.java)
     }
@@ -65,14 +81,19 @@ class SenderActivity : AppCompatActivity() {
 
     private fun initViews() {
         tvPairingCode = findViewById(R.id.tvPairingCode)
+        tvLocalIp = findViewById(R.id.tvLocalIp)
+        tvPort = findViewById(R.id.tvPort)
+        ivQrCode = findViewById(R.id.ivQrCode)
         tvStatus = findViewById(R.id.tvSenderStatus)
         btnToggleSharing = findViewById(R.id.btnToggleSharing)
         btnCopyCode = findViewById(R.id.btnCopyCode)
+        btnCopyConnectionInfo = findViewById(R.id.btnCopyConnectionInfo)
         spinnerResolution = findViewById(R.id.spinnerResolution)
         spinnerFps = findViewById(R.id.spinnerFps)
         spinnerBitrate = findViewById(R.id.spinnerBitrate)
         btnToggleSharing.setOnClickListener { toggleSharing() }
         btnCopyCode.setOnClickListener { copyPairingCode() }
+        btnCopyConnectionInfo.setOnClickListener { copyConnectionInfo() }
     }
 
     private fun setupSpinners() {
@@ -117,13 +138,66 @@ class SenderActivity : AppCompatActivity() {
     private fun generatePairingCode() {
         pairingCode = (100000..999999).random().toString()
         tvPairingCode.text = pairingCode.chunked(3).joinToString(" ")
+        updateQrCode()
+    }
+
+    private fun loadLocalIpAddress() {
+        CoroutineScope(Dispatchers.IO).launch {
+            val ip = NetworkUtils.getLocalIpAddress()
+            runOnUiThread {
+                localIpAddress = ip ?: "Tidak ditemukan"
+                tvLocalIp.text = localIpAddress
+                tvPort.text = "Port: ${StreamProtocol.TCP_STREAMING_PORT}"
+                updateQrCode()
+            }
+        }
+    }
+
+    private fun updateQrCode() {
+        if (localIpAddress.isNotEmpty() && localIpAddress != "Tidak ditemukan") {
+            val pairingInfo = PairingInfo(localIpAddress, StreamProtocol.TCP_STREAMING_PORT, pairingCode)
+            if (pairingInfo.isValid()) {
+                CoroutineScope(Dispatchers.IO).launch {
+                    val qrBitmap = generateQrCode(pairingInfo.toJson())
+                    runOnUiThread {
+                        ivQrCode.setImageBitmap(qrBitmap)
+                        ivQrCode.visibility = android.view.View.VISIBLE
+                    }
+                }
+            }
+        }
+    }
+
+    private fun generateQrCode(text: String): Bitmap {
+        val writer = QRCodeWriter()
+        val size = 300
+        try {
+            val bitMatrix = writer.encode(text, BarcodeFormat.QR_CODE, size, size)
+            val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+            for (x in 0 until size) {
+                for (y in 0 until size) {
+                    bitmap.setPixel(x, y, if (bitMatrix[x, y]) 0xFF000000 else 0xFFFFFFFF)
+                }
+            }
+            return bitmap
+        } catch (e: WriterException) {
+            return Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        }
     }
 
     private fun copyPairingCode() {
         val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         val clip = ClipData.newPlainText("Pairing Code", pairingCode)
         clipboard.setPrimaryClip(clip)
-        Toast.makeText(this, "Kode disalin ke clipboard", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, "Kode pairing disalin", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun copyConnectionInfo() {
+        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        val info = "IP: $localIpAddress\nPort: ${StreamProtocol.TCP_STREAMING_PORT}\nKode: $pairingCode"
+        val clip = ClipData.newPlainText("Connection Info", info)
+        clipboard.setPrimaryClip(clip)
+        Toast.makeText(this, "Info koneksi disalin", Toast.LENGTH_SHORT).show()
     }
 
     private fun checkPermissionsAndStart() {
@@ -163,7 +237,7 @@ class SenderActivity : AppCompatActivity() {
             action = ScreenCaptureService.ACTION_START
             putExtra(ScreenCaptureService.EXTRA_PROJECTION_DATA, projectionData)
             putExtra(ScreenCaptureService.EXTRA_PAIRING_CODE, pairingCode)
-            putExtra(ScreenCaptureService.EXTRA_TCP_PORT, 45455)
+            putExtra(ScreenCaptureService.EXTRA_TCP_PORT, StreamProtocol.TCP_STREAMING_PORT)
             putExtra(ScreenCaptureService.EXTRA_WIDTH, currentWidth)
             putExtra(ScreenCaptureService.EXTRA_HEIGHT, currentHeight)
             putExtra(ScreenCaptureService.EXTRA_FPS, currentFps)

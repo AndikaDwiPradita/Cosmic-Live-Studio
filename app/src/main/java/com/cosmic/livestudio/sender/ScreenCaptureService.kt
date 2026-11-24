@@ -28,6 +28,7 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
+import java.io.BufferedInputStream
 import java.net.ServerSocket
 import java.net.Socket
 import java.util.concurrent.atomic.AtomicBoolean
@@ -190,7 +191,17 @@ class ScreenCaptureService : Service() {
         val previousSocket = clientSocketRef.getAndSet(socket)
         previousSocket?.close()
 
-        // Send config packet immediately
+        // First, perform pairing handshake
+        val pairingSuccess = performPairingHandshake(socket)
+        if (!pairingSuccess) {
+            Log.d("ScreenCapture", "Pairing failed, closing connection")
+            if (clientSocketRef.compareAndSet(socket, null)) {
+                try { socket.close() } catch (_: Exception) {}
+            }
+            return
+        }
+
+        // Pairing successful - send stream config and start streaming
         sendPacket(socket, StreamProtocol.createConfigPacket(streamWidth, streamHeight, streamFps, streamBitrate))
 
         try {
@@ -216,6 +227,82 @@ class ScreenCaptureService : Service() {
                 try { socket.close() } catch (_: Exception) {}
             }
             Log.d("ScreenCapture", "Client disconnected")
+        }
+    }
+
+    /**
+     * Performs pairing handshake with the connected client.
+     * Waits for pairing request, validates code, sends response.
+     */
+    private suspend fun performPairingHandshake(socket: Socket): Boolean {
+        val input = BufferedInputStream(socket.getInputStream())
+        val header = ByteArray(StreamProtocol.HEADER_SIZE)
+
+        // Wait for pairing request with timeout
+        try {
+            var read = 0
+            while (read < header.size) {
+                val n = input.read(header, read, header.size - read)
+                if (n == -1) {
+                    Log.w("ScreenCapture", "Client disconnected during pairing handshake")
+                    return false
+                }
+                read += n
+            }
+
+            val (frameType, payloadLength) = StreamProtocol.parseHeader(header)
+            if (frameType != StreamProtocol.FRAME_TYPE_PAIR_REQUEST) {
+                Log.w("ScreenCapture", "Expected pairing request, got frame type: $frameType")
+                sendPacket(socket, StreamProtocol.createPairErrorResponse("Invalid handshake: expected pairing request"))
+                return false
+            }
+
+            if (payloadLength < 0 || payloadLength > 1024) {
+                Log.w("ScreenCapture", "Invalid pairing request payload length: $payloadLength")
+                sendPacket(socket, StreamProtocol.createPairErrorResponse("Invalid pairing request"))
+                return false
+            }
+
+            val payload = ByteArray(payloadLength)
+            read = 0
+            while (read < payloadLength) {
+                val n = input.read(payload, read, payloadLength - read)
+                if (n == -1) {
+                    Log.w("ScreenCapture", "Client disconnected during pairing payload read")
+                    return false
+                }
+                read += n
+            }
+
+            // Parse pairing code from request
+            val requestCode = StreamProtocol.parsePairRequestPayload(payload)
+            if (requestCode == null) {
+                Log.w("ScreenCapture", "Failed to parse pairing request")
+                sendPacket(socket, StreamProtocol.createPairErrorResponse("Invalid pairing request format"))
+                return false
+            }
+
+            Log.d("ScreenCapture", "Received pairing request with code: $requestCode, expected: $currentPairingCode")
+
+            // Validate pairing code
+            if (requestCode != currentPairingCode) {
+                Log.w("ScreenCapture", "Pairing code mismatch")
+                sendPacket(socket, StreamProtocol.createPairErrorResponse("Kode pairing tidak cocok"))
+                return false
+            }
+
+            // Pairing successful - send success response with stream config
+            val response = StreamProtocol.createPairSuccessResponse(streamWidth, streamHeight, streamFps, streamBitrate)
+            sendPacket(socket, response)
+            Log.d("ScreenCapture", "Pairing successful, streaming config sent")
+            return true
+
+        } catch (e: Exception) {
+            Log.e("ScreenCapture", "Pairing handshake error", e)
+            try {
+                sendPacket(socket, StreamProtocol.createPairErrorResponse("Handshake error: ${e.message}"))
+            } catch (_: Exception) {}
+            return false
         }
     }
 

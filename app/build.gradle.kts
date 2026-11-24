@@ -60,4 +60,8 @@ dependencies {
 
     // For JSON serialization in UDP discovery
     implementation("com.google.code.gson:gson:2.11.0")
+
+    // ZXing for QR code generation and scanning
+    implementation("com.google.zxing:core:3.5.2")
+    implementation("com.journeyapps:zxing-android-embedded:4.3.0")
 }

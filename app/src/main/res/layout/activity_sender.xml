@@ -36,7 +36,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            
+            android:gap="16dp"
             android:paddingBottom="32dp">
 
             <!-- Status Card -->
@@ -70,6 +70,136 @@
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 
+            <!-- Connection Info Card (IP, Port, QR Code) -->
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:cardBackgroundColor="@color/dark_surface"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="4dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="24dp"
+                    android:gap="16dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Info Koneksi Manual"
+                        android:textAppearance="@style/TextAppearance.CosmicLiveStudio.Title" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Gunakan info ini jika perangkat tidak ditemukan otomatis"
+                        android:textAppearance="@style/TextAppearance.CosmicLiveStudio.BodySecondary" />
+
+                    <!-- IP Address -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:gap="12dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="IP Lokal:"
+                            android:textAppearance="@style/TextAppearance.CosmicLiveStudio.Body"
+                            android:layout_width="80dp" />
+
+                        <TextView
+                            android:id="@+id/tvLocalIp"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="Mendeteksi..."
+                            android:textAppearance="@style/TextAppearance.CosmicLiveStudio.Body"
+                            android:textColor="@color/secondary"
+                            android:fontFamily="monospace" />
+                    </LinearLayout>
+
+                    <!-- Port -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:gap="12dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Port TCP:"
+                            android:textAppearance="@style/TextAppearance.CosmicLiveStudio.Body"
+                            android:layout_width="80dp" />
+
+                        <TextView
+                            android:id="@+id/tvPort"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="Port: 45455"
+                            android:textAppearance="@style/TextAppearance.CosmicLiveStudio.Body"
+                            android:textColor="@color/secondary"
+                            android:fontFamily="monospace" />
+                    </LinearLayout>
+
+                    <!-- QR Code -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:gravity="center"
+                        android:gap="8dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="QR Code (pindai di HP 1)"
+                            android:textAppearance="@style/TextAppearance.CosmicLiveStudio.BodySecondary" />
+
+                        <ImageView
+                            android:id="@+id/ivQrCode"
+                            android:layout_width="200dp"
+                            android:layout_height="200dp"
+                            android:scaleType="fitCenter"
+                            android:visibility="gone"
+                            android:background="@color/dark_surface_variant"
+                            android:padding="16dp" />
+                    </LinearLayout>
+
+                    <!-- Copy buttons -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gap="12dp"
+                        android:gravity="center">
+
+                        <Button
+                            android:id="@+id/btnCopyCode"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="Salin Kode"
+                            style="@style/Widget.CosmicLiveStudio.Button.Secondary" />
+
+                        <Button
+                            android:id="@+id/btnCopyConnectionInfo"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="Salin Semua Info"
+                            style="@style/Widget.CosmicLiveStudio.Button.Secondary" />
+                    </LinearLayout>
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+
             <!-- Pairing Code Card -->
             <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"
@@ -84,7 +214,7 @@
                     android:orientation="vertical"
                     android:padding="24dp"
                     android:gravity="center"
-                    >
+                    android:gap="12dp">
 
                     <TextView
                         android:layout_width="wrap_content"
@@ -104,14 +234,6 @@
                         android:layout_height="wrap_content"
                         android:text="@string/share_this_code"
                         android:textAppearance="@style/TextAppearance.CosmicLiveStudio.BodySecondary" />
-
-                    <Button
-                        android:id="@+id/btnCopyCode"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Salin Kode"
-                        style="@style/Widget.CosmicLiveStudio.Button.Secondary"
-                        android:layout_marginTop="8dp" />
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 
@@ -128,7 +250,7 @@
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
                     android:padding="24dp"
-                    >
+                    android:gap="16dp">
 
                     <TextView
                         android:layout_width="wrap_content"
@@ -141,7 +263,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
-                        >
+                        android:gap="16dp">
 
                         <TextView
                             android:layout_width="0dp"
@@ -164,7 +286,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
-                        >
+                        android:gap="16dp">
 
                         <TextView
                             android:layout_width="0dp"
@@ -187,7 +309,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
-                        >
+                        android:gap="16dp">
 
                         <TextView
                             android:layout_width="0dp"

@@ -2,6 +2,7 @@ package com.cosmic.livestudio.network
 
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import java.nio.charset.StandardCharsets
 
 object StreamProtocol {
     // UDP Discovery
@@ -20,7 +21,12 @@ object StreamProtocol {
     const val FRAME_TYPE_B = 0x05
     const val FRAME_TYPE_CONFIG = 0x06
     const val FRAME_TYPE_HEARTBEAT = 0x07
-    const val FRAME_TYPE_EOS = 0xFF
+    const val FRAME_TYPE_EOS = 0xFF.toByte()
+
+    // Pairing/Control Frame Types (0x10-0x1F range)
+    const val FRAME_TYPE_PAIR_REQUEST = 0x10    // Receiver -> Sender: {code}
+    const val FRAME_TYPE_PAIR_RESPONSE = 0x11   // Sender -> Receiver: {success, error?, width?, height?, fps?, bitrate?}
+    const val FRAME_TYPE_PAIR_ERROR = 0x12      // Sender -> Receiver: {error}
 
     // Header size in bytes
     const val HEADER_SIZE = 8
@@ -65,7 +71,7 @@ object StreamProtocol {
     }
 
     /**
-     * Creates discovery payload JSON
+     * Creates discovery payload JSON (UDP broadcast)
      */
     fun createDiscoveryPayload(code: String, tcpPort: Int): String {
         return """{"app":"$DISCOVERY_APP_ID","code":"$code","tcpPort":$tcpPort}"""
@@ -94,18 +100,69 @@ object StreamProtocol {
         }
     }
 
-    private fun extractJsonString(json: String, key: String): String? {
-        val pattern = "\"$key\"\\s*:\\s*\"([^\"]*)\"".toRegex()
-        return pattern.find(json)?.groupValues?.get(1)
-    }
+    // Pairing request/response payloads (JSON over framed packets)
 
-    private fun extractJsonNumber(json: String, key: String): String? {
-        val pattern = "\"$key\"\\s*:\\s*(\\d+)".toRegex()
-        return pattern.find(json)?.groupValues?.get(1)
+    /**
+     * Creates pairing request payload
+     */
+    fun createPairRequestPayload(code: String): ByteArray {
+        val json = """{"code":"$code"}""".trimIndent()
+        return createPacket(FRAME_TYPE_PAIR_REQUEST, json.toByteArray(StandardCharsets.UTF_8))
     }
 
     /**
-     * Creates config packet with stream parameters
+     * Parses pairing request payload
+     */
+    fun parsePairRequestPayload(payload: ByteArray): String? {
+        val json = String(payload, StandardCharsets.UTF_8)
+        return extractJsonString(json, "code")
+    }
+
+    /**
+     * Creates pairing success response
+     */
+    fun createPairSuccessResponse(width: Int, height: Int, fps: Int, bitrate: Int): ByteArray {
+        val json = """{"success":true,"width":$width,"height":$height,"fps":$fps,"bitrate":$bitrate}"""
+        return createPacket(FRAME_TYPE_PAIR_RESPONSE, json.toByteArray(StandardCharsets.UTF_8))
+    }
+
+    /**
+     * Creates pairing error response
+     */
+    fun createPairErrorResponse(error: String): ByteArray {
+        val json = """{"success":false,"error":"$error"}"""
+        return createPacket(FRAME_TYPE_PAIR_RESPONSE, json.toByteArray(StandardCharsets.UTF_8))
+    }
+
+    /**
+     * Parses pairing response payload
+     */
+    data class PairResponse(
+        val success: Boolean,
+        val error: String? = null,
+        val width: Int = 0,
+        val height: Int = 0,
+        val fps: Int = 0,
+        val bitrate: Int = 0
+    )
+
+    fun parsePairResponsePayload(payload: ByteArray): PairResponse? {
+        return try {
+            val json = String(payload, StandardCharsets.UTF_8)
+            val success = extractJsonBoolean(json, "success") ?: false
+            val error = extractJsonString(json, "error")
+            val width = extractJsonNumber(json, "width")?.toIntOrNull() ?: 0
+            val height = extractJsonNumber(json, "height")?.toIntOrNull() ?: 0
+            val fps = extractJsonNumber(json, "fps")?.toIntOrNull() ?: 0
+            val bitrate = extractJsonNumber(json, "bitrate")?.toIntOrNull() ?: 0
+            PairResponse(success, error, width, height, fps, bitrate)
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    /**
+     * Creates config packet with stream parameters (legacy, kept for compatibility)
      */
     fun createConfigPacket(width: Int, height: Int, fps: Int, bitrate: Int): ByteArray {
         val config = ByteBuffer.allocate(16).apply {
@@ -119,7 +176,7 @@ object StreamProtocol {
     }
 
     /**
-     * Parses config packet
+     * Parses config packet (legacy)
      */
     fun parseConfigPacket(payload: ByteArray): ConfigInfo? {
         if (payload.size < 16) return null
@@ -151,5 +208,21 @@ object StreamProtocol {
      */
     fun createEndOfStream(): ByteArray {
         return createPacket(FRAME_TYPE_EOS, ByteArray(0))
+    }
+
+    // JSON parsing helpers
+    private fun extractJsonString(json: String, key: String): String? {
+        val pattern = "\"$key\"\\s*:\\s*\"([^\"]*)\"".toRegex()
+        return pattern.find(json)?.groupValues?.get(1)
+    }
+
+    private fun extractJsonNumber(json: String, key: String): String? {
+        val pattern = "\"$key\"\\s*:\\s*(\\d+)".toRegex()
+        return pattern.find(json)?.groupValues?.get(1)
+    }
+
+    private fun extractJsonBoolean(json: String, key: String): Boolean? {
+        val pattern = "\"$key\"\\s*:\\s*(true|false)".toRegex()
+        return pattern.find(json)?.groupValues?.get(1)?.toBoolean()
     }
 }

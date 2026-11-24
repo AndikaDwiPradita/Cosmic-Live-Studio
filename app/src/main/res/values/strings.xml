@@ -7,6 +7,8 @@
     <string name="btn_disconnect">Putuskan</string>
     <string name="btn_start_sharing">Mulai Bagikan Layar</string>
     <string name="btn_stop_sharing">Berhenti Bagikan</string>
+    <string name="btn_scan_qr">Pindai QR Code</string>
+    <string name="btn_connect_manual">Hubungkan Manual</string>
     <string name="status_waiting">Menunggu koneksi…</string>
     <string name="status_connecting">Menghubungkan…</string>
     <string name="status_connected">Terhubung</string>
@@ -23,6 +25,11 @@
     <string name="share_this_code">Bagikan kode ini ke perangkat penerima</string>
     <string name="waiting_for_connection">Menunggu koneksi…</string>
     <string name="stream_info">Informasi Stream</string>
+    <string name="mode_udp_discovery">Auto (UDP Broadcast)</string>
+    <string name="mode_manual_pairing">Manual (IP/Port/Code)</string>
+    <string name="manual_pairing_info">Masukkan IP, Port, dan Pairing Code dari HP Pengirim</string>
+    <string name="ip_address_hint">Alamat IP (contoh: 192.168.1.100)</string>
+    <string name="port_hint">Port TCP (default: 45455)</string>
     <string name="notification_title_sender">Cosmic Live Studio - Berbagi Layar</string>
     <string name="notification_text_sender">Sedang mengirim stream. Pairing Code: %s</string>
     <string name="notification_channel_sender">Screen Sharing</string>
