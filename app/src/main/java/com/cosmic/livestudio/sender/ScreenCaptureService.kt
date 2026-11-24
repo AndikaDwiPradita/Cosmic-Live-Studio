@@ -1,6 +1,5 @@
 package com.cosmic.livestudio.sender
 
-import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
@@ -20,16 +19,15 @@ import android.view.WindowManager
 import androidx.core.app.NotificationCompat
 import com.cosmic.livestudio.R
 import com.cosmic.livestudio.network.StreamProtocol
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.channels.ReceiveChannel
-import kotlinx.coroutines.completableDeferred
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import java.io.BufferedInputStream
+import java.net.InetSocketAddress
 import java.net.ServerSocket
 import java.net.Socket
 import java.util.concurrent.atomic.AtomicBoolean
@@ -52,7 +50,7 @@ class ScreenCaptureService : Service() {
     private var streamFps = 30
     private var streamBitrate = 3_500_000
     private var wakeLock: PowerManager.WakeLock? = null
-    private var tcpServerReady = kotlinx.coroutines.CompletableDeferred<Unit>()
+    private var tcpServerReady = CompletableDeferred<Unit>()
 
     override fun onCreate() {
         super.onCreate()
@@ -69,7 +67,7 @@ class ScreenCaptureService : Service() {
     }
 
     private fun releaseWakeLock() {
-        wakeLock?.release()
+        wakeLock?.let { if (it.isHeld) it.release() }
         wakeLock = null
         Log.d("ScreenCapture", "WakeLock released")
     }
@@ -110,11 +108,8 @@ class ScreenCaptureService : Service() {
         if (isRunning.getAndSet(true)) return
         mediaProjection = projection
 
-        // Create encoder with proper keyframe handling
-        val newEncoder = H264ScreenEncoder(streamWidth, streamHeight, streamFps, streamBitrate) { data, isKeyframe ->
-            if (isRunning.get()) {
-                frameChannel.trySend(data to isKeyframe)
-            }
+        val newEncoder = H264ScreenEncoder(streamWidth, streamHeight, streamFps, streamBitrate) { data, _ ->
+            if (isRunning.get()) frameChannel.trySend(data to false)
         }
         encoder = newEncoder
         val surface = newEncoder.start()
@@ -140,7 +135,6 @@ class ScreenCaptureService : Service() {
 
         startTcpServer()
 
-        // Wait for TCP server to be ready before starting UDP beacon
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 tcpServerReady.await()
@@ -157,8 +151,8 @@ class ScreenCaptureService : Service() {
     private fun restartEncoder() {
         if (!isRunning.get()) return
         encoder?.stop()
-        val newEncoder = H264ScreenEncoder(streamWidth, streamHeight, streamFps, streamBitrate) { data, isKeyframe ->
-            if (isRunning.get()) frameChannel.trySend(data to isKeyframe)
+        val newEncoder = H264ScreenEncoder(streamWidth, streamHeight, streamFps, streamBitrate) { data, _ ->
+            if (isRunning.get()) frameChannel.trySend(data to false)
         }
         encoder = newEncoder
         val surface = newEncoder.start()
@@ -167,13 +161,13 @@ class ScreenCaptureService : Service() {
     }
 
     private fun startTcpServer() {
-        tcpServerReady = kotlinx.coroutines.CompletableDeferred()
+        tcpServerReady = CompletableDeferred()
         tcpJob = CoroutineScope(Dispatchers.IO).launch {
             try {
                 val socket = ServerSocket().apply {
-                    setReuseAddress(true)
+                    reuseAddress = true
                     soTimeout = 1000
-                    setReceiveBufferSize(256 * 1024)
+                    receiveBufferSize = 256 * 1024
                     bind(InetSocketAddress(currentTcpPort))
                 }
                 serverSocket = socket
@@ -184,7 +178,7 @@ class ScreenCaptureService : Service() {
                     try {
                         val client = socket.accept().apply {
                             tcpNoDelay = true
-                            setSendBufferSize(256 * 1024)
+                            sendBufferSize = 256 * 1024
                             soTimeout = 5000
                         }
                         Log.d("ScreenCapture", "Client connected: ${client.inetAddress}")
@@ -198,8 +192,9 @@ class ScreenCaptureService : Service() {
             } catch (e: Exception) {
                 Log.e("ScreenCapture", "TCP server error", e)
                 if (!tcpServerReady.isCompleted) tcpServerReady.completeExceptionally(e)
+            } finally {
+                Log.d("ScreenCapture", "TCP server stopped")
             }
-            Log.d("ScreenCapture", "TCP server stopped")
         }
     }
 
@@ -207,9 +202,7 @@ class ScreenCaptureService : Service() {
         val previousSocket = clientSocketRef.getAndSet(socket)
         previousSocket?.close()
 
-        // First, perform pairing handshake
-        val pairingSuccess = performPairingHandshake(socket)
-        if (!pairingSuccess) {
+        if (!performPairingHandshake(socket)) {
             Log.d("ScreenCapture", "Pairing failed, closing connection")
             if (clientSocketRef.compareAndSet(socket, null)) {
                 try { socket.close() } catch (_: Exception) {}
@@ -217,17 +210,13 @@ class ScreenCaptureService : Service() {
             return
         }
 
-        // Pairing successful - send pairing success response with stream config
-        sendPacket(socket, StreamProtocol.createPairSuccessResponse(streamWidth, streamHeight, streamFps, streamBitrate))
-
         try {
             val output = socket.getOutputStream()
             while (isRunning.get() && !socket.isClosed && clientSocketRef.get() == socket) {
-                // Use non-blocking receive with timeout to allow checking connection state
                 val frameData = withTimeoutOrNull(1000) { frameChannel.receive() }
-                if (frameData == null) continue // Timeout - check loop condition
+                if (frameData == null) continue
 
-                val (data, isKeyframe) = frameData
+                val (data, _) = frameData
                 try {
                     output.write(StreamProtocol.createPacketFromNal(data))
                     output.flush()
@@ -246,15 +235,10 @@ class ScreenCaptureService : Service() {
         }
     }
 
-    /**
-     * Performs pairing handshake with the connected client.
-     * Waits for pairing request, validates code, sends response.
-     */
     private suspend fun performPairingHandshake(socket: Socket): Boolean {
         val input = BufferedInputStream(socket.getInputStream())
         val header = ByteArray(StreamProtocol.HEADER_SIZE)
 
-        // Wait for pairing request with timeout
         try {
             var read = 0
             while (read < header.size) {
@@ -290,7 +274,6 @@ class ScreenCaptureService : Service() {
                 read += n
             }
 
-            // Parse pairing code from request
             val requestCode = StreamProtocol.parsePairRequestPayload(payload)
             if (requestCode == null) {
                 Log.w("ScreenCapture", "Failed to parse pairing request")
@@ -300,19 +283,16 @@ class ScreenCaptureService : Service() {
 
             Log.d("ScreenCapture", "Received pairing request with code: $requestCode, expected: $currentPairingCode")
 
-            // Validate pairing code
             if (requestCode != currentPairingCode) {
                 Log.w("ScreenCapture", "Pairing code mismatch")
                 sendPacket(socket, StreamProtocol.createPairErrorResponse("Kode pairing tidak cocok"))
                 return false
             }
 
-            // Pairing successful - send success response with stream config
             val response = StreamProtocol.createPairSuccessResponse(streamWidth, streamHeight, streamFps, streamBitrate)
             sendPacket(socket, response)
             Log.d("ScreenCapture", "Pairing successful, streaming config sent")
             return true
-
         } catch (e: Exception) {
             Log.e("ScreenCapture", "Pairing handshake error", e)
             try {
@@ -347,21 +327,21 @@ class ScreenCaptureService : Service() {
     }
 
     private fun stopCapture() {
-        if (!isRunning.getAndSet(false)) return
+        if (!isRunning.getAndSet(false)) {
+            stopUdpBeacon()
+            return
+        }
         Log.d("ScreenCapture", "Stopping capture...")
 
         encoder?.stop()
         encoder = null
-
         virtualDisplay?.release()
         virtualDisplay = null
-
         mediaProjection?.stop()
         mediaProjection = null
 
         serverSocket?.close()
         serverSocket = null
-
         clientSocketRef.getAndSet(null)?.close()
 
         tcpJob?.cancel()
@@ -369,7 +349,7 @@ class ScreenCaptureService : Service() {
 
         stopUdpBeacon()
         releaseWakeLock()
-        stopForeground(true)
+        stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
     }
 
