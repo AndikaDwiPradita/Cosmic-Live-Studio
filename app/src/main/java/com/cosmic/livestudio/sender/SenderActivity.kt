@@ -13,7 +13,6 @@ import android.graphics.Bitmap
 import android.media.projection.MediaProjectionManager
 import android.net.ConnectivityManager
 import android.net.Network
-import android.net.NetworkCallback
 import android.net.NetworkRequest
 import android.os.Build
 import android.os.Bundle
@@ -60,7 +59,7 @@ class SenderActivity : AppCompatActivity() {
     private var currentFps = 30
     private var currentBitrate = 3_500_000
     private var localIpAddress = ""
-    private var networkCallback: NetworkCallback? = null
+    private var networkCallback: ConnectivityManager.NetworkCallback? = null
     private var serverStatusReceiver: BroadcastReceiver? = null
 
     private val resolutions = listOf("480p (854x480)" to Pair(854, 480), "720p (1280x720)" to Pair(1280, 720), "1080p (1920x1080)" to Pair(1920, 1080))
@@ -170,7 +169,7 @@ class SenderActivity : AppCompatActivity() {
     private fun registerNetworkCallback() {
         try {
             val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-            val callback = object : NetworkCallback() {
+            val callback = object : ConnectivityManager.NetworkCallback() {
                 override fun onAvailable(network: Network) { refreshNetworkInfo() }
                 override fun onLost(network: Network) { refreshNetworkInfo() }
             }
