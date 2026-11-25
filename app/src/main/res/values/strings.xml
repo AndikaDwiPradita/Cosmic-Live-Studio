@@ -1,0 +1,42 @@
+<resources>
+    <string name="app_name">Cosmic Live Studio</string>
+    <string name="mode_sender">Bagikan Layar</string>
+    <string name="mode_receiver">Tampilkan Layar</string>
+
+    <!-- Sender UI -->
+    <string name="connection_info_title">Info Koneksi HP 1 (Penerima)</string>
+    <string name="ip_local_label">IP Lokal:</string>
+    <string name="tcp_port_label">Port TCP:</string>
+    <string name="qr_code_label">QR Code (Pindai di HP 1)</string>
+    <string name="btn_copy_ip_port">Salin IP & Port</string>
+    <string name="share_this_code">Bagikan info ini ke perangkat penerima</string>
+
+    <!-- Receiver UI -->
+    <string name="btn_scan_qr_hp2">Pindai QR Code HP 2 (Pengirim)</string>
+    <string name="or_manual">ATAU MASUKKAN MANUAL</string>
+    <string name="manual_ip_label">Alamat IP HP 2</string>
+    <string name="manual_ip_hint">Contoh: 192.168.43.1:45455</string>
+    <string name="btn_connect">Hubungkan</string>
+    <string name="btn_disconnect">Putuskan</string>
+
+    <!-- Common -->
+    <string name="btn_start_sharing">Mulai Bagikan Layar</string>
+    <string name="btn_stop_sharing">Berhenti Bagikan</string>
+    <string name="status_waiting">Menunggu koneksi…</string>
+    <string name="status_connecting">Menghubungkan…</string>
+    <string name="status_connected">Terhubung</string>
+    <string name="status_disconnected">Terputus</string>
+    <string name="status_error">Error</string>
+    <string name="permission_media_projection">Izin Rekam Layar diperlukan</string>
+    <string name="permission_notification">Izin Notifikasi diperlukan</string>
+    <string name="resolution_label">Resolusi:</string>
+    <string name="fps_label">FPS:</string>
+    <string name="bitrate_label">Bitrate:</string>
+    <string name="latency_label">Latency:</string>
+
+    <!-- Notifications -->
+    <string name="notification_title_sender">Cosmic Live Studio - Berbagi Layar</string>
+    <string name="notification_text_sender">Sedang mengirim stream. Port %s</string>
+    <string name="notification_channel_sender">Screen Sharing</string>
+    <string name="notification_channel_receiver">Stream Receiving</string>
+</resources>
