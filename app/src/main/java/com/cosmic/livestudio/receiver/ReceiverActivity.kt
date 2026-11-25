@@ -393,10 +393,10 @@ class ReceiverActivity : AppCompatActivity(), SurfaceHolder.Callback {
         Toast.makeText(this, message, Toast.LENGTH_LONG).show()
     }
 
-    private fun formatBitrate(bitrate: Int): String {
+    private fun formatBitrate(bitrate: Long): String {
         return when {
-            bitrate >= 1_000_000 -> String.format("%.1f Mbps", bitrate / 1_000_000.0)
-            bitrate >= 1_000 -> String.format("%.0f kbps", bitrate / 1_000.0)
+            bitrate >= 1_000_000L -> String.format("%.1f Mbps", bitrate / 1_000_000.0)
+            bitrate >= 1_000L -> String.format("%.0f kbps", bitrate / 1_000.0)
             else -> "$bitrate bps"
         }
     }
