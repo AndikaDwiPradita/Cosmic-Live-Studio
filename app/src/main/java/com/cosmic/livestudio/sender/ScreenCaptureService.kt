@@ -75,6 +75,10 @@ class ScreenCaptureService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_START -> {
+                // Promote to foreground immediately: Android 14 kills services that
+                // call startForeground too late, which silently killed the TCP server.
+                showNotification()
+
                 val projectionData = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     intent.getParcelableExtra(EXTRA_PROJECTION_DATA, Intent::class.java)
                 } else {
@@ -87,10 +91,31 @@ class ScreenCaptureService : Service() {
                 streamFps = intent.getIntExtra(EXTRA_FPS, 30)
                 streamBitrate = intent.getIntExtra(EXTRA_BITRATE, 3_500_000)
 
+                if (projectionData == null) {
+                    Log.e("ScreenCapture", "Missing media projection data")
+                    broadcastStatus(STATE_ERROR, "Izin rekam layar tidak valid")
+                    stopCapture()
+                    return START_STICKY
+                }
+
                 val manager = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
-                projectionData?.let { manager.getMediaProjection(android.app.Activity.RESULT_OK, it)?.let(::startCapture) }
+                val projection = try {
+                    manager.getMediaProjection(android.app.Activity.RESULT_OK, projectionData)
+                } catch (e: Exception) {
+                    Log.e("ScreenCapture", "Failed to get media projection", e)
+                    null
+                }
+                if (projection == null) {
+                    broadcastStatus(STATE_ERROR, "Gagal mengakses rekam layar")
+                    stopCapture()
+                } else {
+                    startCapture(projection)
+                }
             }
-            ACTION_STOP -> stopCapture()
+            ACTION_STOP -> {
+                broadcastStatus(STATE_STOPPED)
+                stopCapture()
+            }
             ACTION_UPDATE_SETTINGS -> {
                 streamWidth = intent.getIntExtra(EXTRA_WIDTH, streamWidth)
                 streamHeight = intent.getIntExtra(EXTRA_HEIGHT, streamHeight)
@@ -100,6 +125,15 @@ class ScreenCaptureService : Service() {
             }
         }
         return START_STICKY
+    }
+
+    private fun broadcastStatus(state: String, message: String? = null) {
+        val statusIntent = Intent(ACTION_SERVER_STATUS)
+            .setPackage(packageName)
+            .putExtra(EXTRA_STATE, state)
+            .putExtra(EXTRA_TCP_PORT, currentTcpPort)
+            .putExtra(EXTRA_MESSAGE, message)
+        sendBroadcast(statusIntent)
     }
 
     private fun generatePairingCode() = (100000..999999).random().toString()
@@ -115,6 +149,7 @@ class ScreenCaptureService : Service() {
         val surface = newEncoder.start()
         if (surface == null) {
             Log.e("ScreenCapture", "Failed to start encoder")
+            broadcastStatus(STATE_ERROR, "Encoder video gagal dimulai di perangkat ini")
             stopCapture()
             return
         }
@@ -173,6 +208,7 @@ class ScreenCaptureService : Service() {
                 serverSocket = socket
                 Log.d("ScreenCapture", "TCP server listening on port $currentTcpPort")
                 tcpServerReady.complete(Unit)
+                broadcastStatus(STATE_READY)
 
                 while (isRunning.get()) {
                     try {
@@ -192,6 +228,8 @@ class ScreenCaptureService : Service() {
             } catch (e: Exception) {
                 Log.e("ScreenCapture", "TCP server error", e)
                 if (!tcpServerReady.isCompleted) tcpServerReady.completeExceptionally(e)
+                broadcastStatus(STATE_ERROR, e.message ?: "port $currentTcpPort tidak bisa dibuka")
+                stopCapture()
             } finally {
                 Log.d("ScreenCapture", "TCP server stopped")
             }
@@ -392,6 +430,12 @@ class ScreenCaptureService : Service() {
         const val ACTION_START = "com.cosmic.livestudio.action.START_CAPTURE"
         const val ACTION_STOP = "com.cosmic.livestudio.action.STOP_CAPTURE"
         const val ACTION_UPDATE_SETTINGS = "com.cosmic.livestudio.action.UPDATE_SETTINGS"
+        const val ACTION_SERVER_STATUS = "com.cosmic.livestudio.action.SERVER_STATUS"
+        const val STATE_READY = "ready"
+        const val STATE_ERROR = "error"
+        const val STATE_STOPPED = "stopped"
+        const val EXTRA_STATE = "state"
+        const val EXTRA_MESSAGE = "message"
         const val EXTRA_PROJECTION_DATA = "com.cosmic.livestudio.extra.MEDIA_PROJECTION_DATA"
         const val EXTRA_PAIRING_CODE = "pairing_code"
         const val EXTRA_TCP_PORT = "tcp_port"

@@ -65,45 +65,78 @@ object NetworkUtils {
     private const val TAG = "NetworkUtils"
 
     /**
-     * Gets the local IPv4 address that can be used for peer-to-peer connections.
-     * Priority: Hotspot/AP interface (ap0, wlan0 with 192.168.43.x/42.x) > Wi-Fi > Others
+     * Interface prefixes that belong to mobile data / virtual networks.
+     * Connecting to these IPs (e.g. carrier CGNAT 10.x.x.x) is impossible from
+     * another phone on hotspot/wifi, so they must never be shown as pairing IP.
      */
-    fun getLocalIpAddress(): String? {
-        var fallbackIp: String? = null
+    private val NON_LAN_PREFIXES = listOf(
+        "rmnet", "ccmni", "pdp", "seth", "ccinet", "usb", "tun", "tap", "dummy", "bp-", "ifb", "sit", "lo"
+    )
+
+    fun isLanInterfaceName(name: String): Boolean {
+        val lower = name.lowercase()
+        return NON_LAN_PREFIXES.none { lower.startsWith(it) }
+    }
+
+    /** Human readable description of a network interface name. */
+    fun describeInterface(name: String): String {
+        val lower = name.lowercase()
+        return when {
+            lower.startsWith("ap") || lower.startsWith("swlan") || lower.contains("softap") -> "Hotspot"
+            lower.startsWith("wlan") -> "Wi-Fi"
+            lower.startsWith("eth") -> "Ethernet"
+            else -> "Antarmuka lain"
+        }
+    }
+
+    private fun interfacePriority(name: String): Int {
+        val lower = name.lowercase()
+        return when {
+            lower.startsWith("ap") || lower.startsWith("swlan") || lower.contains("softap") -> 0 // Hotspot AP
+            lower.startsWith("wlan") -> 1 // Wi-Fi client
+            lower.startsWith("eth") -> 2  // Ethernet / USB tethering
+            else -> 3
+        }
+    }
+
+    /**
+     * Lists all usable IPv4 LAN candidates sorted best-first:
+     * Hotspot AP > Wi-Fi > Ethernet > other non-cellular interfaces.
+     * Mobile data interfaces (rmnet/ccmni/...) are excluded because their
+     * carrier CGNAT addresses are unreachable for LAN pairing.
+     */
+    fun getLocalIpCandidates(): List<Pair<String, String>> {
+        val candidates = mutableListOf<Pair<String, String>>() // (interface, ip)
         try {
             val interfaces = NetworkInterface.getNetworkInterfaces()
             while (interfaces.hasMoreElements()) {
                 val ni = interfaces.nextElement()
                 if (!ni.isUp || ni.isLoopback || ni.isVirtual) continue
+                if (!isLanInterfaceName(ni.name)) continue
 
                 val addresses = ni.inetAddresses
                 while (addresses.hasMoreElements()) {
                     val address = addresses.nextElement()
                     if (address.isLoopbackAddress) continue
                     val hostAddress = address.hostAddress ?: continue
-                    // Prefer IPv4 (no colons) and filter out link-local (169.254.x.x)
+                    // Only IPv4, skip link-local (169.254.x.x)
                     if (!hostAddress.contains(":") && !hostAddress.startsWith("169.254.")) {
-                        Log.d(TAG, "Found local IP: $hostAddress on interface ${ni.name}")
-                        // Priority 1: Hotspot interface (Android AP typically 192.168.43.x or 192.168.42.x)
-                        if (ni.name.startsWith("ap") || hostAddress.startsWith("192.168.43.") || hostAddress.startsWith("192.168.42.")) {
-                            return hostAddress
-                        }
-                        // Priority 2: Wi-Fi interface (wlan0, wlan1)
-                        if (ni.name.startsWith("wlan") && fallbackIp == null) {
-                            fallbackIp = hostAddress
-                        }
-                        // Priority 3: Other non-loopback
-                        if (fallbackIp == null) {
-                            fallbackIp = hostAddress
-                        }
+                        Log.d(TAG, "LAN candidate: $hostAddress on interface ${ni.name}")
+                        candidates.add(ni.name to hostAddress)
                     }
                 }
             }
         } catch (e: SocketException) {
             Log.e(TAG, "Error getting network interfaces", e)
         }
-        return fallbackIp
+        return candidates.sortedBy { interfacePriority(it.first) }
     }
+
+    /**
+     * Gets the best local IPv4 address for peer-to-peer connections.
+     * Priority: Hotspot/AP > Wi-Fi > Ethernet > other non-cellular.
+     */
+    fun getLocalIpAddress(): String? = getLocalIpCandidates().firstOrNull()?.second
 
     /**
      * Validates an IPv4 or IPv6 address string.

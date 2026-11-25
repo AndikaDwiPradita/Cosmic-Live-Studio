@@ -27,6 +27,8 @@
     <string name="status_connected">Terhubung</string>
     <string name="status_disconnected">Terputus</string>
     <string name="status_error">Error</string>
+    <string name="status_sharing_active">Berbagi layar aktif — menunggu HP 1 terhubung</string>
+    <string name="server_error_prefix">Gagal memulai server: %s</string>
     <string name="permission_media_projection">Izin Rekam Layar diperlukan</string>
     <string name="permission_notification">Izin Notifikasi diperlukan</string>
     <string name="resolution_label">Resolusi:</string>

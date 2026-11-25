@@ -2,15 +2,22 @@ package com.cosmic.livestudio.sender
 
 import android.Manifest
 import android.app.Activity
+import android.content.BroadcastReceiver
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.media.projection.MediaProjectionManager
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCallback
+import android.net.NetworkRequest
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.ImageView
@@ -36,6 +43,7 @@ class SenderActivity : AppCompatActivity() {
     private val PERMISSION_REQUEST_CODE = 1002
 
     private lateinit var tvLocalIp: TextView
+    private lateinit var tvNetworkInfo: TextView
     private lateinit var tvPort: TextView
     private lateinit var ivQrCode: ImageView
     private lateinit var tvStatus: TextView
@@ -52,6 +60,8 @@ class SenderActivity : AppCompatActivity() {
     private var currentFps = 30
     private var currentBitrate = 3_500_000
     private var localIpAddress = ""
+    private var networkCallback: NetworkCallback? = null
+    private var serverStatusReceiver: BroadcastReceiver? = null
 
     private val resolutions = listOf("480p (854x480)" to Pair(854, 480), "720p (1280x720)" to Pair(1280, 720), "1080p (1920x1080)" to Pair(1920, 1080))
     private val fpsOptions = listOf("30 FPS" to 30, "60 FPS" to 60)
@@ -64,6 +74,8 @@ class SenderActivity : AppCompatActivity() {
         initViews()
         setupSpinners()
         loadLocalIpAddress()
+        registerNetworkCallback()
+        registerServerStatusReceiver()
         checkPermissionsAndStart()
         mediaProjectionManager = getSystemService(MediaProjectionManager::class.java)
     }
@@ -77,6 +89,7 @@ class SenderActivity : AppCompatActivity() {
 
     private fun initViews() {
         tvLocalIp = findViewById(R.id.tvLocalIp)
+        tvNetworkInfo = findViewById(R.id.tvNetworkInfo)
         tvPort = findViewById(R.id.tvPort)
         ivQrCode = findViewById(R.id.ivQrCode)
         tvStatus = findViewById(R.id.tvSenderStatus)
@@ -130,14 +143,74 @@ class SenderActivity : AppCompatActivity() {
 
     private fun loadLocalIpAddress() {
         CoroutineScope(Dispatchers.IO).launch {
-            val ip = NetworkUtils.getLocalIpAddress()
+            val candidates = NetworkUtils.getLocalIpCandidates()
             runOnUiThread {
-                localIpAddress = ip ?: "Tidak ditemukan"
-                tvLocalIp.text = "IP: $localIpAddress"
+                val best = candidates.firstOrNull()
+                localIpAddress = best?.second ?: "Tidak ditemukan"
+                tvLocalIp.text = localIpAddress
+                tvNetworkInfo.text = buildString {
+                    append("Jaringan: ")
+                    append(best?.let { "${it.first} (${NetworkUtils.describeInterface(it.first)})" } ?: "-")
+                    if (candidates.size > 1) {
+                        append("\nIP lain: ")
+                        append(candidates.drop(1).joinToString(", ") { "${it.second} (${it.first})" })
+                        append("\nJika gagal tersambung, coba IP lain di atas.")
+                    }
+                }
                 tvPort.text = "Port TCP: ${StreamProtocol.TCP_STREAMING_PORT}"
                 updateQrCode()
             }
         }
+    }
+
+    private fun refreshNetworkInfo() {
+        runOnUiThread { loadLocalIpAddress() }
+    }
+
+    private fun registerNetworkCallback() {
+        try {
+            val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+            val callback = object : NetworkCallback() {
+                override fun onAvailable(network: Network) { refreshNetworkInfo() }
+                override fun onLost(network: Network) { refreshNetworkInfo() }
+            }
+            networkCallback = callback
+            cm.registerNetworkCallback(NetworkRequest.Builder().build(), callback)
+        } catch (e: Exception) {
+            Log.w("SenderActivity", "Failed to register network callback", e)
+        }
+    }
+
+    private fun registerServerStatusReceiver() {
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                if (intent?.action != ScreenCaptureService.ACTION_SERVER_STATUS) return
+                when (intent.getStringExtra(ScreenCaptureService.EXTRA_STATE)) {
+                    ScreenCaptureService.STATE_READY -> {
+                        val port = intent.getIntExtra(ScreenCaptureService.EXTRA_TCP_PORT, StreamProtocol.TCP_STREAMING_PORT)
+                        tvStatus.text = getString(R.string.status_sharing_active)
+                        tvStatus.setTextColor(getColor(R.color.status_connected))
+                        tvPort.text = "Port TCP: $port \u2713"
+                    }
+                    ScreenCaptureService.STATE_ERROR -> {
+                        val message = intent.getStringExtra(ScreenCaptureService.EXTRA_MESSAGE) ?: "tidak diketahui"
+                        tvStatus.text = getString(R.string.server_error_prefix, message)
+                        tvStatus.setTextColor(getColor(R.color.error))
+                    }
+                    ScreenCaptureService.STATE_STOPPED -> {
+                        tvStatus.text = getString(R.string.status_disconnected)
+                        tvStatus.setTextColor(getColor(R.color.status_disconnected))
+                    }
+                }
+            }
+        }
+        serverStatusReceiver = receiver
+        ContextCompat.registerReceiver(
+            this,
+            receiver,
+            IntentFilter(ScreenCaptureService.ACTION_SERVER_STATUS),
+            ContextCompat.RECEIVER_NOT_EXPORTED
+        )
     }
 
     private fun updateQrCode() {
@@ -264,6 +337,17 @@ class SenderActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         if (isSharing) stopCaptureService()
+        networkCallback?.let {
+            try {
+                val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+                cm.unregisterNetworkCallback(it)
+            } catch (_: Exception) {}
+            networkCallback = null
+        }
+        serverStatusReceiver?.let {
+            try { unregisterReceiver(it) } catch (_: Exception) {}
+            serverStatusReceiver = null
+        }
         super.onDestroy()
     }
 }

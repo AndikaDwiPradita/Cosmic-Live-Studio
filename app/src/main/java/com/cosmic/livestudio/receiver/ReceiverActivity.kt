@@ -214,13 +214,26 @@ class ReceiverActivity : AppCompatActivity(), SurfaceHolder.Callback {
                 newSocket.tcpNoDelay = true
                 newSocket.receiveBufferSize = 256 * 1024
                 newSocket.soTimeout = 5000
-                newSocket.connect(InetSocketAddress(ip, port), 8000)
+                newSocket.connect(InetSocketAddress(ip, port), 12000)
                 handleTcpStream(newSocket)
             } catch (e: Exception) {
                 Log.e(TAG, "TCP connection error", e)
+                val friendly = when (e) {
+                    is java.net.ConnectException ->
+                        "HP 2 menolak koneksi. Pastikan di HP 2 layar sedang DIBAGIKAN " +
+                            "(status 'Berbagi layar aktif') dan alamat IP-nya benar."
+                    is java.net.SocketTimeoutException ->
+                        "HP 2 tidak merespons. Pastikan kedua HP terhubung ke jaringan yang sama. " +
+                            "Wi-Fi voucher/RT-RW net umumnya memblokir antar-perangkat (AP isolation) " +
+                            "— gunakan hotspot dari HP 2."
+                    is java.net.NoRouteToHostException, is java.net.UnknownHostException ->
+                        "Jaringan menuju HP 2 tidak tersedia. Pastikan kedua HP di jaringan yang sama " +
+                            "(hotspot/Wi-Fi) dan IP benar."
+                    else -> "Gagal terhubung: ${e.message}"
+                }
                 runOnUiThread {
                     if (isConnecting || isConnected) {
-                        showError("Gagal terhubung: ${e.message}")
+                        showError(friendly)
                     }
                     disconnectInternal(showToast = false)
                 }
