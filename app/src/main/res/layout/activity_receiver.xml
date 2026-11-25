@@ -21,7 +21,6 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_margin="16dp"
-        android:background="@color/overlay_dark"
         app:cardBackgroundColor="@color/overlay_dark"
         app:cardCornerRadius="12dp"
         app:cardElevation="8dp"
@@ -40,7 +39,6 @@
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:gravity="center_vertical">
-
                 <TextView
                     android:id="@+id/tvReceiverStatus"
                     android:layout_width="wrap_content"
@@ -48,12 +46,10 @@
                     android:text="@string/status_disconnected"
                     android:textAppearance="@style/TextAppearance.CosmicLiveStudio.Title"
                     android:textColor="@color/status_disconnected" />
-
                 <View
                     android:layout_width="0dp"
                     android:layout_height="1dp"
                     android:layout_weight="1" />
-
                 <TextView
                     android:id="@+id/tvConnectionInfo"
                     android:layout_width="wrap_content"
@@ -69,77 +65,21 @@
                 android:orientation="horizontal"
                 android:gravity="center"
                 android:visibility="gone">
-
-                <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:orientation="vertical">
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/resolution_label"
-                        android:textAppearance="@style/TextAppearance.CosmicLiveStudio.StatLabel" />
-                    <TextView
-                        android:id="@+id/tvStatResolution"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="--"
-                        android:textAppearance="@style/TextAppearance.CosmicLiveStudio.StatValue" />
+                <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/resolution_label" android:textAppearance="@style/TextAppearance.CosmicLiveStudio.StatLabel" />
+                    <TextView android:id="@+id/tvStatResolution" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="--" android:textAppearance="@style/TextAppearance.CosmicLiveStudio.StatValue" />
                 </LinearLayout>
-
-                <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:orientation="vertical">
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/fps_label"
-                        android:textAppearance="@style/TextAppearance.CosmicLiveStudio.StatLabel" />
-                    <TextView
-                        android:id="@+id/tvStatFps"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="--"
-                        android:textAppearance="@style/TextAppearance.CosmicLiveStudio.StatValue" />
+                <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/fps_label" android:textAppearance="@style/TextAppearance.CosmicLiveStudio.StatLabel" />
+                    <TextView android:id="@+id/tvStatFps" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="--" android:textAppearance="@style/TextAppearance.CosmicLiveStudio.StatValue" />
                 </LinearLayout>
-
-                <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:orientation="vertical">
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/bitrate_label"
-                        android:textAppearance="@style/TextAppearance.CosmicLiveStudio.StatLabel" />
-                    <TextView
-                        android:id="@+id/tvStatBitrate"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="--"
-                        android:textAppearance="@style/TextAppearance.CosmicLiveStudio.StatValue" />
+                <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/bitrate_label" android:textAppearance="@style/TextAppearance.CosmicLiveStudio.StatLabel" />
+                    <TextView android:id="@+id/tvStatBitrate" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="--" android:textAppearance="@style/TextAppearance.CosmicLiveStudio.StatValue" />
                 </LinearLayout>
-
-                <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:orientation="vertical">
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/latency_label"
-                        android:textAppearance="@style/TextAppearance.CosmicLiveStudio.StatLabel" />
-                    <TextView
-                        android:id="@+id/tvStatLatency"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="--"
-                        android:textAppearance="@style/TextAppearance.CosmicLiveStudio.StatValue" />
+                <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/latency_label" android:textAppearance="@style/TextAppearance.CosmicLiveStudio.StatLabel" />
+                    <TextView android:id="@+id/tvStatLatency" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="--" android:textAppearance="@style/TextAppearance.CosmicLiveStudio.StatValue" />
                 </LinearLayout>
             </LinearLayout>
         </LinearLayout>
@@ -150,7 +90,6 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_margin="16dp"
-        android:background="@color/overlay_dark"
         app:cardBackgroundColor="@color/overlay_dark"
         app:cardCornerRadius="16dp"
         app:cardElevation="8dp"
@@ -162,87 +101,122 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="24dp">
+            android:padding="20dp">
 
-            <!-- Scan QR Code Button (Main Action) -->
-            <Button
-                android:id="@+id/btnScanQr"
+            <RadioGroup
+                android:id="@+id/radioGroupPairingMode"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="@string/btn_scan_qr_hp2"
-                style="@style/Widget.CosmicLiveStudio.Button.Primary" />
-
-            <!-- OR Divider -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                android:layout_marginBottom="16dp"
-                android:orientation="horizontal"
-                android:gravity="center">
-
-                <View
+                android:orientation="horizontal">
+                <RadioButton
+                    android:id="@+id/radioUdpDiscovery"
                     android:layout_width="0dp"
-                    android:layout_height="1dp"
-                    android:layout_weight="1"
-                    android:background="@color/divider" />
-
-                <TextView
-                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="16dp"
-                    android:layout_marginEnd="16dp"
-                    android:text="@string/or_manual"
-                    android:textAppearance="@style/TextAppearance.CosmicLiveStudio.BodySecondary" />
-
-                <View
-                    android:layout_width="0dp"
-                    android:layout_height="1dp"
                     android:layout_weight="1"
-                    android:background="@color/divider" />
-            </LinearLayout>
+                    android:checked="true"
+                    android:text="Pairing otomatis" />
+                <RadioButton
+                    android:id="@+id/radioManualPairing"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Manual / QR" />
+            </RadioGroup>
 
-            <!-- Manual IP Input -->
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/manual_ip_label"
-                android:textAppearance="@style/TextAppearance.CosmicLiveStudio.Body"
-                android:layout_marginBottom="8dp" />
-
-            <com.google.android.material.textfield.TextInputLayout
+            <LinearLayout
+                android:id="@+id/layoutPairingInput"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                style="@style/Widget.CosmicLiveStudio.TextInputLayout"
-                android:layout_marginBottom="16dp">
-
-                <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/etManualIp"
+                android:orientation="vertical">
+                <com.google.android.material.textfield.TextInputLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:hint="@string/manual_ip_hint"
-                    android:inputType="text"
-                    android:digits="0123456789.:"
-                    android:textColor="@color/text_primary"
-                    android:textSize="18sp" />
-            </com.google.android.material.textfield.TextInputLayout>
+                    style="@style/Widget.CosmicLiveStudio.TextInputLayout">
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/etPairingCode"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:hint="Masukkan 6-digit pairing code"
+                        android:inputType="number"
+                        android:maxLength="6"
+                        android:imeOptions="actionDone" />
+                </com.google.android.material.textfield.TextInputLayout>
+                <Button
+                    android:id="@+id/btnConnect"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="@string/btn_connect"
+                    style="@style/Widget.CosmicLiveStudio.Button.Primary" />
+            </LinearLayout>
 
-            <!-- Connect Button -->
-            <Button
-                android:id="@+id/btnConnectManual"
+            <LinearLayout
+                android:id="@+id/layoutManualPairing"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="@string/btn_connect"
-                style="@style/Widget.CosmicLiveStudio.Button.Primary" />
+                android:orientation="vertical"
+                android:visibility="gone">
+                <Button
+                    android:id="@+id/btnScanQr"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/btn_scan_qr_hp2"
+                    style="@style/Widget.CosmicLiveStudio.Button.Secondary" />
+                <com.google.android.material.textfield.TextInputLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    style="@style/Widget.CosmicLiveStudio.TextInputLayout">
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/etIpAddress"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:hint="@string/manual_ip_hint"
+                        android:inputType="text"
+                        android:digits="0123456789.:" />
+                </com.google.android.material.textfield.TextInputLayout>
+                <com.google.android.material.textfield.TextInputLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    style="@style/Widget.CosmicLiveStudio.TextInputLayout">
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/etPort"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:hint="Port TCP (default 45455)"
+                        android:inputType="number"
+                        android:text="45455" />
+                </com.google.android.material.textfield.TextInputLayout>
+                <com.google.android.material.textfield.TextInputLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    style="@style/Widget.CosmicLiveStudio.TextInputLayout">
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/etManualPairingCode"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:hint="Masukkan 6-digit pairing code"
+                        android:inputType="number"
+                        android:maxLength="6"
+                        android:imeOptions="actionDone" />
+                </com.google.android.material.textfield.TextInputLayout>
+                <Button
+                    android:id="@+id/btnManualConnect"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="@string/btn_connect"
+                    style="@style/Widget.CosmicLiveStudio.Button.Primary" />
+            </LinearLayout>
 
-            <!-- Connected Controls (shown after connection) -->
             <LinearLayout
                 android:id="@+id/layoutConnectedControls"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
                 android:visibility="gone">
-
                 <Button
                     android:id="@+id/btnDisconnect"
                     android:layout_width="match_parent"
